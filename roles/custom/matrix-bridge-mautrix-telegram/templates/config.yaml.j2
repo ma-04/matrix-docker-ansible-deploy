@@ -106,6 +106,10 @@ bridge:
     # will not send any more members.
     # Defaults to no local limit (-> limited to 10000 by server)
     max_initial_member_sync: 10
+    # Maximum number of participants in chats to bridge. Only applies when the portal is being created.
+    # If there are more members when trying to create a room, the room creation will be cancelled.
+    # -1 means no limit (which means all chats can be bridged)
+    max_member_count: 100
     # Whether or not to sync the member list in channels.
     # If no channel admins have logged into the bridge, the bridge won't be able to sync the member
     # list regardless of this setting.
@@ -153,7 +157,7 @@ bridge:
     # Maximum size of image in megabytes before sending to Telegram as a document.
     image_as_file_size: 10
     # Maximum size of Telegram documents in megabytes to bridge.
-    max_document_size: 100
+    max_document_size: 50
     # Enable experimental parallel file transfer, which makes uploads/downloads much faster by
     # streaming from/to Matrix and using many connections for Telegram.
     # Note that generating HQ thumbnails for videos is not possible with streamed transfers.
