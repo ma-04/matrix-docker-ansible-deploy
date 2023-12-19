@@ -48,7 +48,7 @@ Web clients for matrix that you can host on your own domains.
 | Name | Default? | Description | Documentation |
 | ---- | -------- | ----------- | ------------- |
 | [Element](https://app.element.io/) | ✓ | Web UI, which is configured to connect to your own Synapse server by default | [Link](docs/configuring-playbook-client-element.md) |
-| [Hydrogen](https://github.com/vector-im/hydrogen-web) | x | Lightweight matrix client with legacy and mobile browser support | [Link](docs/configuring-playbook-client-hydrogen.md) |
+| [Hydrogen](https://github.com/element-hq/hydrogen-web) | x | Lightweight matrix client with legacy and mobile browser support | [Link](docs/configuring-playbook-client-hydrogen.md) |
 | [Cinny](https://github.com/ajbura/cinny) |  x | Simple, elegant and secure web client | [Link](docs/configuring-playbook-client-cinny.md) |
 | [SchildiChat](https://schildi.chat/) | x | Based on Element, with a more traditional instant messaging experience | [Link](docs/configuring-playbook-client-schildichat.md) |
 
@@ -197,14 +197,6 @@ When updating the playbook, refer to [the changelog](CHANGELOG.md) to catch up w
 
 ## Related
 
-You may also be interested in these other Ansible playbooks:
+You may also be interested in [mash-playbook](https://github.com/mother-of-all-self-hosting/mash-playbook) - another Ansible playbook for self-hosting non-Matrix services (see its [List of supported services](https://github.com/mother-of-all-self-hosting/mash-playbook/blob/main/docs/supported-services.md)).
 
-- [gitea-docker-ansible-deploy](https://github.com/spantaleev/gitea-docker-ansible-deploy) - for deploying a [Gitea](https://gitea.io/) git version-control server
-
-- [nextcloud-docker-ansible-deploy](https://github.com/spantaleev/nextcloud-docker-ansible-deploy) - for deploying a [Nextcloud](https://nextcloud.com/) server
-
-- [peertube-docker-ansible-deploy](https://github.com/spantaleev/peertube-docker-ansible-deploy) - for deploying a [PeerTube](https://joinpeertube.org/) video-platform server
-
-- [vaultwarden-docker-ansible-deploy](https://github.com/spantaleev/vaultwarden-docker-ansible-deploy) - for deploying a [Vaultwarden](https://github.com/dani-garcia/vaultwarden) password manager server (unofficial [Bitwarden](https://bitwarden.com/) compatible server)
-
-They're all making use of Traefik as their reverse-proxy, so it should be easy to host all these services on the same server. Follow the `docs/configuring-playbook-interoperability.md` documentation in each playbook.
+mash-playbook also makes use of [Traefik](./docs/configuring-playbook-traefik.md) as its reverse-proxy, so with minor [interoperability adjustments](https://github.com/mother-of-all-self-hosting/mash-playbook/blob/main/docs/interoperability.md), you can make matrix-docker-ansible-deploy and mash-playbook co-exist and host Matrix and non-Matrix services on the same server.
