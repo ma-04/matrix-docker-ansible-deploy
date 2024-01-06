@@ -1,3 +1,33 @@
+# 2024-01-05
+
+## matrix-mailer has been replaced by the exim-relay external role
+
+We're continuing our effort to make [the playbook use external roles for some things](#the-playbook-now-uses-external-roles-for-some-things), so as to avoid doing everything ourselves and to facilitate code re-use.
+
+The `matrix-mailer` role has been moved to its own repository ([ansible-role-exim-relay](https://github.com/mother-of-all-self-hosting/ansible-role-exim-relay)) that this playbook now includes.
+
+To migrate:
+
+- pull the playbook changes, as usual
+- update your roles (run `just roles` or `make roles`)
+- update your `vars.yml`, renaming `matrix_mailer`-prefixed variables to `exim_relay`-prefixed ones (e.g. `matrix_mailer_sender_address` -> `exim_relay_sender_address`). If you find none, it means you're using the default configuration and your migraiton job is even simpler.
+- re-run the playbook (`install-all` or `setup-all`)
+
+The playbook will take care of stopping the old `matrix-mailer` systemd service, relocating its directory and restarting it under the new name (`matrix-exim-relay.service`).
+
+
+# 2024-01-02
+
+## mautrix-signal now powered by the new Go-based bridge
+
+The old Python-based [mautrix-signal](https://github.com/mautrix/signal) bridge is no longer maintained upstream. It's also known to have issues linking new devices.
+
+It seems like the path forward is to switch to the new mautrix-signal bridge written in Golang, which we did thanks to [PR #3031](https://github.com/spantaleev/matrix-docker-ansible-deploy/pull/3041) by [Pierre 'McFly' Marty](https://github.com/pm-McFly).
+
+The playbook should **automatically migrate your mautrix-signal installation to the new bridge code**.
+You will **need to relink all your devices** to continue your bridged conversations.
+
+
 # 2023-10-23
 
 ## Enabling `allow_public_rooms_over_federation` by default for Synapse
