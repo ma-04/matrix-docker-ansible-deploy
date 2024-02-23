@@ -1,3 +1,370 @@
+# 2024-02-19
+
+## Support for bridging to Facebook/Messenger via the new mautrix-meta bridge
+
+The [mautrix-facebook](./docs/configuring-playbook-bridge-mautrix-facebook.md) and [mautrix-instagram](./docs/configuring-playbook-bridge-mautrix-instagram.md) bridges are being [superseded by a new bridge](https://github.com/mautrix/facebook/issues/332) - the [mautrix-meta](https://github.com/mautrix/meta) bridge.
+
+The playbook now supports the new mautrix-meta bridge - a single bridge, which can run in different modes and bridge to Messenger (via [Facebook](https://facebook.com/), Facebook over [Tor](https://www.torproject.org/) or via [Messenger](https://messenger.com/)) and [Instagram](https://instagram.com/). The playbook makes this bridge available via 2 separate Ansible roles, allowing you to easily run 2 instances of mautrix-meta, for bridging to both services at the same time.
+
+If you're using mautrix-facebook or mautrix-instagram right now, **you can still continue using the old bridges, but may wish to change to the new bridge implementations**. See:
+
+- [Setting up Instagram bridging via Mautrix Meta](docs/configuring-playbook-bridge-mautrix-meta-instagram.md)
+
+- [Setting up Messenger bridging via Mautrix Meta](docs/configuring-playbook-bridge-mautrix-meta-messenger.md)
+
+The documentation pages contain more information on how to migrate.
+
+
+# 2024-02-14
+
+## Much larger Synapse caches and cache auto-tuning enabled by default
+
+Thanks to [FSG-Cat](https://github.com/FSG-Cat), the playbook now uses much larger caches and enables Synapse's [cache auto-tuning functionality](https://matrix-org.github.io/synapse/latest/usage/configuration/config_documentation.html#caches-and-associated-values).
+This work and the default values used by the playbook are inspired by [Tom Foster](https://github.com/tcpipuk)'s [Synapse homeserver guide](https://tcpipuk.github.io/synapse/deployment/synapse.html).
+
+The playbook has always used a very conservative cache factor (`matrix_synapse_caches_global_factor`) value of `0.5`, which may be OK for small and underactive deployments, but is not ideal for larger servers. Paradoxically, a small global cache factor value [does not necessarily decrease RAM usage as a whole](https://github.com/matrix-org/synapse/issues/3939).
+
+The playbook now uses **a 20x larger cache factor** (currently `10`), adjusts a few other cache-related variables, and **enables cache auto-tuning** via the following variables:
+
+- `matrix_synapse_cache_autotuning_max_cache_memory_usage` - defaults to 1/8 of total RAM with a cap of 2GB; values are specified in bytes
+- `matrix_synapse_cache_autotuning_target_cache_memory_usage` - defaults to 1/16 of total RAM with a cap of 1GB; values are specified in bytes
+- `matrix_synapse_cache_autotuning_min_cache_ttl` - defaults to `30s`
+
+These values should be good defaults for most servers, but may change over time as we experiment further.
+
+Refer to our new [Tuning caches and cache autotuning](docs/maintenance-synapse.md#tuning-caches-and-cache-autotuning) documentation section for more details.
+
+
+# 2024-01-31
+
+## (Backward-compatibility break) Minor changes necessary for some people serving a static website at the base domain
+
+This only affects people who are [Serving a static website at the base domain](./docs/configuring-playbook-base-domain-serving.md#serving-a-static-website-at-the-base-domain), but not managing its `index.html` through the playbook.
+
+That is, for people who have `matrix_static_files_file_index_html_enabled: false` in their `vars.yml` configuration, the playbook has a new default behavior. Since the playbook is not managing the `index.html` file, it will default to a more sensible way of handling the base domain  - redirecting `https://DOMAIN/` to `https://matrix.DOMAIN/`, instead of serving a 404 page.
+
+If you are managing your static website by yourself (by dropping files into `/matrix/static-files/public` somehow), then you probably don't wish for such redirection to happen. You can disable it by adding `matrix_static_files_container_labels_base_domain_root_path_redirection_enabled: false` to your `vars.yml` configuration file.
+
+
+# 2024-01-20
+
+## Support for more efficient (specialized) Synapse workers
+
+Thanks to [Charles Wright](https://github.com/cvwright) from [FUTO](https://www.futo.org/), the creators of the [Circles app](https://circu.li/), the playbook has [received support](https://github.com/spantaleev/matrix-docker-ansible-deploy/pull/3100) for load-balancing the Synapse workload via [specialized workers](./docs/configuring-playbook-synapse.md#specialized-workers) which are supposed to work better than our old [generic workers](./docs/configuring-playbook-synapse.md#generic-workers) implementation.
+
+For now, playbook defaults remain unchanged and the `one-of-each` [workers preset](./docs/configuring-playbook-synapse.md#worker-presets) continues being the default. However, the default may change in the future. If you'd like to remain on this preset even if/when the defaults change, consider explicitly adding `matrix_synapse_workers_preset: one-of-each` to your `vars.yml` configuration.
+
+Our specialized workers setup is based on recommendations found in [Tom Foster](https://github.com/tcpipuk)'s [Synapse homeserver guide](https://tcpipuk.github.io/synapse/index.html). What's special about our new setup is that we try to parse information out of the request (who the user is; which room is being operated on) and try to forward similar requests to the same worker. As an example, this means that once a worker caches some room information, subsequent requests for the same room will be routed to the same worker (which supposedly still has the room's state cached).
+
+To get started, refer to our [Specialized workers](./docs/configuring-playbook-synapse.md#specialized-workers) documentation section.
+
+
+# 2024-01-17
+
+## Switching to Element's AGPLv3-licensed Synapse release
+
+A few months ago, the [Element](https://element.io/) company has [announced](https://element.io/blog/element-to-adopt-agplv3/) that their work on the Synapse homeserver would no longer be available under the permissive [Apache-2.0 license](https://www.apache.org/licenses/LICENSE-2.0), but only under:
+
+- the [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.en.html) free-software license - the same license that this Ansible playbook has always used
+- a proprietary license, for those wishing for Element to [sell them an exception](https://gnu.org/philosophy/selling-exceptions.html) to the AGPLv3 license
+
+You can also learn more in [this post](https://matrix.org/blog/2023/11/06/future-of-synapse-dendrite/) by the Matrix Foundation.
+
+The change has [already happened](https://element.io/blog/synapse-now-lives-at-github-com-element-hq-synapse/) and the first Synapse release under the new license is here: [v1.99.0](https://github.com/element-hq/synapse/releases/tag/v1.99.0).
+
+There is no up-to-date alternative Synapse fork right now and this free-software (AGPLv3-licensed) playbook is definitely not against free-software licenses, so we are now switching to the Element-maintained Synapse release.
+
+**What does this mean to you?**
+
+For most home users, it doesn't mean anything. Your installation will continue working as it should and you don't need to do anything.
+
+For people building commercial products on top of Synapse, they may have to either buy a license exception from Element (from what we hear, the fee depends on the number of monthly-active users on your instance) or they may need to release all related code as free-software (which is what we've been doing at [etke.cc](https://etke.cc/) ([here](https://gitlab.com/etke.cc)) all along).
+
+We're no lawyers and this changelog entry does not aim to give you the best legal advice, so please research on your own!
+
+If you'd like to continue using the old Apache-2.0-licensed Synapse (for a while longer anyway), the playbook makes it possible by intruducing a new Ansible variable. You can do it like this:
+
+```yaml
+# Switch the organization that Synapse container images (or source code for self-building) are pulled from.
+# Note: the new default value is `element-hq/synapse`.
+matrix_synapse_github_org_and_repo: matrix-org/synapse
+
+# Pin the Synapse version to the last one (v1.98.0) released by the Matrix Foundation
+# under the old permissive Apache-2.0 license.
+matrix_synapse_version: v1.98.0
+```
+
+Notes:
+
+- if you had already upgraded Synapse to `v1.99.0` by running this playbook, you will still be able to downgrade to `v1.98.0`, because both releases use the same database schema version (`SCHEMA_COMPAT_VERSION = 83` - see [here for v1.98.0](https://github.com/element-hq/synapse/blob/v1.98.0/synapse/storage/schema/__init__.py#L131-L134) and [here for v1.99.0](https://github.com/element-hq/synapse/blob/v1.99.0/synapse/storage/schema/__init__.py#L137-L140)). More details on Synapse's database schema are available [here](https://element-hq.github.io/synapse/develop/development/database_schema.html). It appears that there are no new database migrations introduced in `v1.99.0`, so going back to the older release is possible. This is not guaranteed to hold true for future Synapse releases, so if you're seeing this early-enough, consider pinning the version and organization before re-running the playbook and getting upgraded to the latest version
+
+- running an outdated homeserver exposes you to security issues and incompatibilities. Only consider doing this as a short-term solution.
+
+# 2024-01-16
+
+## `Draupnir` has been relicensed to AFL-3.0
+
+As of [#204](https://github.com/the-draupnir-project/Draupnir/pull/204) Draupnir changed its licence to AFL-3.0 from the CSL licence. This change affects playbook users who could not run Draupnir under the old license restrictions. The new license is considerably less restrictive and is OSI approved. Draupnir version v1.86.0 and later are covered by this license change.
+
+# 2024-01-15
+
+## Goodbye, `matrix-nginx-proxy` 🪦
+
+**TLDR**: All traces of the `matrix-nginx-proxy` reverse-proxy component are now gone. This brought about many other internal changes (and security improvements), so setups may need minor adjustments or suffer some (temporary) breakage. People who have been on the Traefik-native setup may upgrade without much issues. Those running their own Traefik instance may need minor changes. People who have been postponing the migration away from `matrix-nginx-proxy` (for more than a year already!) will now finally need to do something about it.
+
+### Backstory on `matrix-nginx-proxy`
+
+We gather here today to celebrate the loss of a once-beloved component in our stack - `matrix-nginx-proxy`. It's been our [nginx](https://nginx.org/)-based reverse-proxy of choice since the [first commit](https://github.com/spantaleev/matrix-docker-ansible-deploy/tree/87f5883f2455fb115457b65f267f17de305c053c) of this playbook, 7 years ago.
+
+For 6 years, `matrix-nginx-proxy` has been the front-most reverse-proxy in our setup (doing SSL termination, etc.). After [transitioning to Traefik last year](#traefik-is-the-default-reverse-proxy-now), `matrix-nginx-proxy` took a step back. Nevertheless, since it was so ingrained into the playbook, it still remained in use - even if only internally. Despite our warnings of its imminent death, many of you have indubitably continued to use it instead of Traefik. Its suffering continued for too long, because it served many different purposes and massive effort was required to transition them to others.
+
+To us, `matrix-nginx-proxy` was:
+
+- an [nginx](https://nginx.org/)-based reverse-proxy
+- an Ansible role organizing the work of [certbot](https://certbot.eff.org/) - retrieving free [Let's Encrypt](https://letsencrypt.org/) SSL certificates for `matrix-nginx-proxy` and for the [Coturn TURN server](./docs/configuring-playbook-turn.md)
+- a central component for reverse-proxying to the [long list of services](./docs/configuring-playbook.md) supported by the playbook. As such, it became a dependency that all these services had to inject themselves into during runtime
+- an intermediary through which addons (bridges, bots) communicated with the homeserver. Going through an intermediary (instead of directly talking to the homeserver) is useful when certain components (like [matrix-media-repo](./docs/configuring-playbook-matrix-media-repo.md) or [matrix-corporal](./docs/configuring-playbook-matrix-corporal.md)) are enabled, because it lets these services "steal routes" from the homeserver
+- a webserver for serving the `/.well-known/matrix` static files (generated by the `matrix-base` role until now)
+- a webserver [serving your base domain](./docs/configuring-playbook-base-domain-serving.md) (and also generating the `index.html` page for it)
+- a central component providing global [HTTP Basic Auth](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication) password-protection for all `/metrics` endpoints when metrics were exposed publicly for consumption from a remote Prometheus server
+
+Talk about a jack of all trades! The [UNIX philosophy](https://en.wikipedia.org/wiki/Unix_philosophy) (and Docker container philosophy) of "do one thing and do it well" had been severely violated for too long.
+
+On a related note, we also had a large chain of reverse-proxies in the mix.
+In the worst case, it was something like this: (Traefik -> `matrix-nginx-proxy:8080` -> `matrix-nginx-proxy:12080` -> `matrix-synapse-reverse-proxy-companion:8008` -> `matrix-synapse:8008`).
+
+Due to complexity and the playbook's flexibility (trying to accommodate a mix of tens of components), many layers of indirection were necessary. We do like reverse-proxies, but.. not quite enough to enjoy going through a chain of ~4 of them before reaching the target service.
+
+After **a ton of work** in the last weeks (200+ commits, which changed 467 files - 8684 insertions and 8913 deletions), **we're finally saying goodbye** to `matrix-nginx-proxy`.
+
+
+### Going Traefik-native and cutting out all middlemen
+
+In our new setup, you'll see the bare minimum number of reverse-proxies.
+
+In most cases, there's only Traefik and all services being registered directly with it. When [Synapse workers](./docs/configuring-playbook-synapse.md#load-balancing-with-workers) are enabled, `matrix-synapse-reverse-proxy-companion` remains as an extra reverse-proxy that requests go through (for load-balancing to the correct Synapse worker), but in all other cases services are exposed directly.
+
+This reduces "network" hops (improving performance) and also decreases the number of components (containers).
+Each Ansible role in our setup is now independent and doesn't need to interact with other roles during runtime.
+
+
+### Traefik now has an extra job
+
+Previously, **Traefik had a single purpose** - being the main reverse-proxy. It was either front-most (terminating SSL, etc.) or you were [fronting Traefik with your own other reverse-proxy](./docs/configuring-playbook-own-webserver.md#fronting-the-integrated-reverse-proxy-webserver-with-another-reverse-proxy). In any case - it had this central (yet decentralized) job.
+
+Now, **Traefik has one more role** - it serves as an intermediary which allows addon services (bridges, bots, etc.) to communicate with the homeserver. As mentioned above, such an intermediary service is not strictly necessary in all kinds of setups, but more complex setups (including [matrix-media-repo](./docs/configuring-playbook-matrix-media-repo.md) or [matrix-corporal](./docs/configuring-playbook-matrix-corporal.md)) benefit from it.
+
+To perform this new role, Traefik now has a new internal [entrypoint](https://doc.traefik.io/traefik/routing/entrypoints/) called `matrix-internal-matrix-client-api`. All homeservers (Conduit, Dendrite, Synapse and even `matrix-synapse-reverse-proxy-companion`) and homeserver-related core services ([matrix-media-repo](./docs/configuring-playbook-matrix-media-repo.md), [matrix-corporal](./docs/configuring-playbook-matrix-corporal.md) and potentially others) register their routes (using [container labels](https://docs.docker.com/config/labels-custom-metadata/)) not only on the public entrypoints (`web-secure`, `matrix-federation`), but also on this new internal entrypoint.
+
+Doing so, services can contact Traefik on this entrypoint's dedicated port (the URL defaults to `http://matrix-traefik:8008`) and reach the homeserver Client-Server API as they expect. Internally, Traefik takes care of the routing to the correct service.
+
+We've also considered keeping it simple and having services talk to the homeserver over the public internet (e.g. `https://matrix.DOMAIN`) thus reusing all existing Traefik routing labels. In this scenario, performance was incredibly poor (e.g. 70 rps, instead of 1400 rps) due to TLS and networking overhead. The need for fast internal communication (via the new internal non-TLS-enabled Traefik entrypoint) is definitely there. In our benchmarks, Traefik even proved more efficient than nginx at doing this: ~1200 rps for Traefik compared to ~900 rps for nginx (out of ~1400 rps when talking to the Synapse homeserver directly).
+
+Traefik serving this second purpose has a few downsides:
+
+- Traefik becomes a runtime dependency for all homeserver-dependant container services
+- all homeserver-dependant services now need to be connected to the `traefik` container network, even if they don't need public internet exposure
+
+Despite these downsides (which the playbook manages automatically), we believe it's still a good compromise given the amount of complexity it eliminates and the performance benefits it yields. One alternative we've [considered](https://github.com/spantaleev/matrix-docker-ansible-deploy/pull/3045#issuecomment-1867327001) was adding a new intermediary service (e.g. `matrix-homeserver-proxy` powered by nginx), but this both had much higher complexity (one more component in the mix; duplication of effort to produce nginx-compatible route definitions for it) and slightly worse performance (see above).
+
+People running the default Traefik setup do not need to do anything to make Traefik take on this extra job. Your Traefik configuration will be updated automatically.
+
+**People runnning their own Traefik reverse-proxy need to do [minor adjustments](#people-managing-their-own-traefik-instance-need-to-do-minor-changes)**, as described in the section below.
+
+You may disable Traefik acting as an intermediary by explicitly setting `matrix_playbook_public_matrix_federation_api_traefik_entrypoint_enabled` to `false`. Services would then be configured to talk to the homeserver directly, giving you a slight performance boost and a "simpler" Traefik setup. However, such a configuration is less tested and will cause troubles, especially if you enable more services (like `matrix-media-repo`, etc.) in the future. As such, it's not recommended.
+
+
+### People managing their own Traefik instance need to do minor changes
+
+This section is for people [managing their own Traefik instance on the Matrix server](./docs/configuring-playbook-own-webserver.md#traefik-managed-by-you). Those [using Traefik managed by the playbook](./docs/configuring-playbook-own-webserver.md#traefik-managed-by-the-playbook) don't need to do any changes.
+
+Because [Traefik has an extra job now](#traefik-now-has-an-extra-job), you need to adapt your configuration to add the additional `matrix-internal-matrix-client-api` entrypoint and potentially configure the `matrix_playbook_reverse_proxy_container_network` variable. See the [Traefik managed by you](./docs/configuring-playbook-own-webserver.md#traefik-managed-by-you) documentation section for more details.
+
+
+### People fronting Traefik with another reverse proxy need to do minor changes
+
+We've already previously mentioned that you need to do some minor [configuration changes related to `devture_traefik_additional_entrypoints_auto`](#backward-compatibility-configuration-changes-required-for-people-fronting-the-integrated-reverse-proxy-webserver-with-another-reverse-proxy).
+
+If you don't do these changes (switching from `devture_traefik_additional_entrypoints_auto` to multiple other variables), your Traefik setup will not automatically receive the new `matrix-internal-matrix-client-api` Traefik entrypoint and Traefik would not be able to perform [its new duty of connecting addons with the homeserver](#traefik-now-has-an-extra-job).
+
+
+### Supported reverse proxy types are now fewer
+
+This section is for people using a more custom reverse-proxy setup - those having `matrix_playbook_reverse_proxy_type` set to a value different than the default (`playbook-managed-traefik`).
+
+Previously, we allowed you to set `matrix_playbook_reverse_proxy_type` to 7 different values to accommodate various reverse-proxy setups.
+
+The complexity of this is too high, so we only support 3 values right now:
+
+- (the default) `playbook-managed-traefik`, when you're [using Traefik managed by the playbook](./docs/configuring-playbook-own-webserver.md#traefik-managed-by-the-playbook)
+- `other-traefik-container`, when you're [managing your own Traefik instance on the Matrix server](./docs/configuring-playbook-own-webserver.md#traefik-managed-by-you)
+- `none`, when you wish for [no reverse-proxy integration to be done at all](./docs/configuring-playbook-own-webserver.md#using-no-reverse-proxy-on-the-matrix-side-at-all)
+
+The `none` value is not recommended and may not work adequately, due to lack of testing and [Traefik's new responsibilities](#traefik-now-has-an-extra-job) in our setup.
+
+**Previous values that are now gone** (and the playbook would report them as such) are: `playbook-managed-nginx`, `other-nginx-non-container`, `other-on-same-host` and `other-on-another-host`.
+
+If you were using these values as a way to stay away from Traefik, you now have 2 options:
+
+- (recommended) [Fronting Traefik with another reverse-proxy](./docs/configuring-playbook-own-webserver.md#fronting-the-integrated-reverse-proxy-webserver-with-another-reverse-proxy)
+- (not recommended) [Using no reverse-proxy on the Matrix side at all](./docs/configuring-playbook-own-webserver.md#using-no-reverse-proxy-on-the-matrix-side-at-all) and reverse-proxying to each and every service manually
+
+
+### Container networking changes
+
+Now that `matrix-nginx-proxy` is not in the mix, it became easier to clear out some other long-overdue technical debt.
+
+Since the very beginning of this playbook, all playbook services were connected to a single (shared) `matrix` container network. Later on, some additional container networks appeared, but most services (database, etc.) still remained in the `matrix` container network.  This meant that any random container in this network could try to talk (or attack) the Postgres database operating in the same `matrix` network.
+
+Moving components (especially the database) into other container networks was difficult - it required changes to many other components to ensure correct connectivity.
+
+All the hard work has been done now. We've added much more isolation between services by splitting them up into separate networks (`matrix-homeserver`, `matrix-addons`, `matrix-monitoring`, `matrix-exim-relay`, etc). Components are only joined to the networks they need and should (for the most part) not be able to access unrelated things.
+
+Carrying out these container networking changes necessitated modifying many components, so **we're hoping not too many bugs were introduced in the process**.
+
+We've refrained from creating too many container networks (e.g. one for each component), to avoid exhausting Docker's default network pool and contaminating the container networks list too much.
+
+
+### Metrics exposure changes
+
+This section is for people who are exposing monitoring metrics publicly, to be consumed by an external Prometheus server.
+
+Previously, `matrix-nginx-proxy` was potentially password-protecting all `/metrics/*` endpoints with the same username and password (specified as plain-text in your `vars.yml` configuration file).
+
+From now on, there are new variables for doing roughly the same - `matrix_metrics_exposure_enabled`, `matrix_metrics_exposure_http_basic_auth_enabled` and `matrix_metrics_exposure_http_basic_auth_users`. See the [Prometheus & Grafana](./docs/configuring-playbook-prometheus-grafana.md) docs page for details.
+
+`matrix-nginx-proxy` is not acting as a "global guardian" anymore. Now, each role provides its own metrics exposure and protection by registering with Traefik. Nevertheless, all roles are wired (via playbook configuration in `group_vars/matrix_servers`) to obey these new `matrix_metrics_exposure_*` variables. We've eliminated the centralization, but have kept the ease of use. Now, you can also do per-service password-protection (with different credentials), should you need to do that for some reason.
+
+The playbook will tell you about all variables that you need to migrate during runtime, so rest assured - you shouldn't be able to miss anything!
+
+
+### Matrix static files
+
+As mentioned above, static files like `/.well-known/matrix/*` or your base domain's `index.html` file (when [serving the base domain via the Matrix server](./docs/configuring-playbook-base-domain-serving.md) was enabled) were generated by the `matrix-base` or `matrix-nginx-proxy` roles and put into a `/matrix/static-files` directory on the server. Then `matrix-nginx-proxy` was serving all these static files.
+
+All of this has been extracted into a new `matrix-static-files` Ansible role that's part of the playbook. The static files generated by this new role still live at roughly the same place (`/matrix/static-files/public` directory, instead of `/matrix/static-files`).
+
+The playbook will migrate and update the `/.well-known/matrix/*` files automatically but not your own files in `nginx-proxy/data/matrix-domain/` you will need to back these up yourself otherwise they will be lost. It will also warn you about usage of old variable names, so you can adapt to the new names.
+
+
+### A note on performance
+
+Some of you have been voicing their concerns (for a long time) about Traefik being too slow and nginx being better.
+
+Some online benchmarks support this by demonstrating slightly higher SSL-termination performance in favor of nginx. The upcoming Traefik v3 release is [said to](https://medium.com/beyn-technology/is-nginx-dead-is-traefik-v3-20-faster-than-traefik-v2-f28ffb7eed3e) improve Traefik's SSL performance by some 20%, but that still ends up being somewhat slower than nginx.
+
+We believe that using Traefik provides way too many benefits to worry about this minor performance impairment.
+
+The heaviest part of running a Matrix homeserver is all the slow and potentially inefficient things the homeserver (e.g. Synapse) is doing. These things affect performance much more than whatever reverse-proxy is in front. Your server will die the same way by joining the famously large **Matrix HQ** room, no matter which reverse-proxy you put in front.
+
+Even our previously mentioned benchmarks (yielding ~1300 rps) are synthetic - hitting a useless `/_matrix/client/versions` endpoint. Real-use does much more than this.
+
+If this is still not convincing enough for you and you want the best possible performance, consider [Fronting Traefik with another reverse-proxy](./docs/configuring-playbook-own-webserver.md#fronting-the-integrated-reverse-proxy-webserver-with-another-reverse-proxy) (thus having the slowest part - SSL termination - happen elsewhere) or [Using no reverse-proxy on the Matrix side at all](./docs/configuring-playbook-own-webserver.md#using-no-reverse-proxy-on-the-matrix-side-at-all). The playbook will not get in your way of doing that, but these options may make your life much harder. Performance comes at a cost, after all.
+
+
+### Migration procedure
+
+The updated playbook will automatically perform some migration tasks for you:
+
+1. It will stop and remove the `matrix-nginx-proxy` systemd service and container for you. This behavior cannot be disabled. It's essential that this service gets stopped, because it remaining running (and having container labels) may confuse Traefik as to where to route HTTP requests.
+
+2. It will delete the `/matrix/nginx-proxy` directory and all files within it. You can disable this behavior by adding `matrix_playbook_migration_matrix_nginx_proxy_uninstallation_enabled: false` to your `vars.yml` configuration file. Doing so will leave its data around.
+
+3. It will delete the `/matrix/ssl` directory and all files within it. You can disable this behavior by adding `matrix_playbook_migration_matrix_ssl_uninstallation_enabled: false` to your `vars.yml` configuration file. If you have some important certificates there for some reason, take them out or temporarily disable removal of these files until you do.
+
+4. It will tell you about all variables (`matrix_nginx_proxy_*` and many others - even from other roles) that have changed during this large nginx-elimination upgrade. You can disable this behavior by adding `matrix_playbook_migration_matrix_nginx_proxy_elimination_variable_transition_checks_enabled: false` to your `vars.yml` configuration file.
+
+5. It will tell you about any leftover `matrix_nginx_proxy_*` variables in your `vars.yml` file. You can disable this behavior by adding `matrix_playbook_migration_matrix_nginx_proxy_leftover_variable_validation_checks_enabled: false` to your `vars.yml` configuration file.
+
+6. It will tell you about any leftover `matrix_ssl_*` variables in your `vars.yml` file. You can disable this behavior by adding `matrix_playbook_migration_matrix_ssl_leftover_variable_checks_enabled: false` to your `vars.yml` configuration file.
+
+We don't recommend changing these variables and suppressing warnings, unless you know what you're doing.
+
+**Most people should just upgrade as per-normal**, bearing in mind that a lot has changed and some issues may arise.
+The playbook would guide you through renamed variables automatically.
+
+
+### Conclusion
+
+Thousands of lines of code were changed across hundreds of files.
+All addons (bridges, bots) were rewired in terms of container networking and in terms of how they reach the homeserver.
+
+I don't actively use all the ~100 components offered by the playbook (no one does), nor do I operate servers exercising all edge-cases. As such, issues may arise. Please have patience and report (or try to fix) these issues!
+
+
+# 2024-01-14
+
+## (Backward Compatibility) Configuration changes required for people fronting the integrated reverse-proxy webserver with another reverse-proxy
+
+If you're on the default setup (using the Traefik reverse-proxy as installed by the playbook), you don't need to do anything.
+
+People who are [Fronting the integrated Traefik reverse-proxy webserver with another reverse-proxy](./docs/configuring-playbook-own-webserver.md#fronting-the-integrated-reverse-proxy-webserver-with-another-reverse-proxy), as per our previous instructions are redefining `devture_traefik_additional_entrypoints_auto` in their `vars.yml` configuration.
+
+Such a full variable redefinion is intrustive, because it prevents the playbook from injecting additional entrypoints into the Traefik webserver. In the future, the playbook may have a need to do so.
+
+For this reason, we no longer recommend completely redefining `devture_traefik_additional_entrypoints_auto`.
+The playbook now defines [various `matrix_playbook_public_matrix_federation_api_traefik_entrypoint_*` variables in the `defaults/main.yml` file](https://github.com/spantaleev/matrix-docker-ansible-deploy/blob/master/roles/custom/matrix-base/defaults/main.yml) of the `matrix-base` role which can be used as a safer alternative to `devture_traefik_additional_entrypoints_auto`.
+
+Adapt your configuration as seen below:
+
+```diff
+-devture_traefik_additional_entrypoints_auto:
+-  - name: matrix-federation
+-    port: 8449
+-    host_bind_port: '127.0.0.1:8449'
+-    config: {}
+-    # If your reverse-proxy runs on another machine, remove the config above and use this config instead:
+-    # config:
+-    #   forwardedHeaders:
+-    #     insecure: true
+-    #     # trustedIPs: ['IP-ADDRESS-OF-YOUR-REVERSE-PROXY']
++# Uncomment and tweak the variable below if the name of your federation entrypoint is different
++# than the default value (matrix-federation).
++# matrix_federation_traefik_entrypoint: matrix-federation
++
++# Uncomment and tweak the variable below if you really wish to change the internal port number
++# that the federation endpoint uses. Changing it is generally not necessary.
++# Usually, changing `matrix_playbook_public_matrix_federation_api_traefik_entrypoint_host_bind_port` below is enough.
++#matrix_playbook_public_matrix_federation_api_traefik_entrypoint_port: 8449
++
++matrix_playbook_public_matrix_federation_api_traefik_entrypoint_host_bind_port: 127.0.0.1:8449
++
++# Adapt the variable below based on where your reverse-proxy runs:
++# - if it's on the Matrix server: keep `forwardedHeaders` and `insecure: true` as is
++# - if it's on another machine: remove `forwardedHeaders` and `insecure: true` and enable/configure `trustedIPs`
++matrix_playbook_public_matrix_federation_api_traefik_entrypoint_config_custom:
++  forwardedHeaders:
++    insecure: true
++  # trustedIPs: ['IP-ADDRESS-OF-YOUR-REVERSE-PROXY']
+```
+
+Also, feel free to read the [Fronting the integrated Traefik reverse-proxy webserver with another reverse-proxy](./docs/configuring-playbook-own-webserver.md#fronting-the-integrated-reverse-proxy-webserver-with-another-reverse-proxy) documentation section again for additional details.
+
+
+# 2024-01-13
+
+## matrix-reminder-bot update with more secure (backward-incompatible) default settings
+
+**TLDR**: your updated (to [v0.3.0](https://github.com/anoadragon453/matrix-reminder-bot/releases/tag/v0.3.0)) [matrix-reminder-bot](./docs/configuring-playbook-bot-matrix-reminder-bot.md) is now more secure. By default, like other bridges/bots managed by the playbook, it will only provide its services to users of your own server (not to anyone, even across the Matrix Federation). If that's fine, there's nothing you need to do.
+
+Maintenance of [matrix-reminder-bot](./docs/configuring-playbook-bot-matrix-reminder-bot.md) has been picked up by [Kim Brose](https://github.com/HarHarLinks) and [@svierne](https://github.com/svierne).
+
+Thanks to them, a new [v0.3.0](https://github.com/anoadragon453/matrix-reminder-bot/releases/tag/v0.3.0) release is out. The new version is now available for the ARM64 architecture, so playbook users on this architecture will no longer need to wait for [self-building](./docs/self-building.md) to happen.
+
+The new version also comes with new `allowlist` and `blocklist` settings, which make it possible to restrict who can use the bot. Previously anyone, even across the Matrix Federation could talk to it and schedule reminders.
+
+The playbook defaults all bridges and bots (where possible) to only be exposed to users of the current homeserver, not users across federation.
+Thanks to the new version of this bot making such a restriction possible, we're now making use of it. The playbook (via its `group_vars/matrix_servers` file) automatically enables the `allowlist` (`matrix_bot_matrix_reminder_bot_allowlist_enabled: true`) and configures it in such a way (`matrix_bot_matrix_reminder_bot_allowlist_regexes_auto`) so as to restrict the bot to your homeserver's users.
+
+If you need **to undo or tweak these security improvements**, you can change your `vars.yml` file to:
+
+- disable the allowlist (`matrix_bot_matrix_reminder_bot_allowlist_enabled: false`), making the bot allow usage by anyone, anywhere
+
+- inject additional allowed servers or users by adding **additional** (on top of the default allowlist in `matrix_bot_matrix_reminder_bot_allowlist_regexes_auto`) custom regexes in the `matrix_bot_matrix_reminder_bot_allowlist_regexes_custom` list variable (see the [syntax reference](https://github.com/anoadragon453/matrix-reminder-bot/blob/1e910c0aa3469d280d93ee7e6c6d577227a3460c/sample.config.yaml#L43-L49))
+
+- override the default allowlist (in the `group_vars/matrix_servers` file) by redefining `matrix_bot_matrix_reminder_bot_allowlist_regexes_auto`
+
+
 # 2024-01-05
 
 ## matrix-mailer has been replaced by the exim-relay external role
@@ -47,7 +414,7 @@ The **historical reasoning** behind this change is as follows:
 
 - `allow_public_rooms_over_federation` seems to have been enabled by default for Synapse until v1.7.0 (~2019), just like we believe it should be for a globally-federating network - rooms should be joinable and discoverable across federation.
 
-- In Synapse v1.7.0 (~2019), `allow_public_rooms_over_federation` [got disabled](https://github.com/matrix-org/synapse/blob/e9069c9f919685606506f04527332e83fbfa44d9/docs/upgrade.md?plain=1#L1877-L1891) by default in a [security-by-obscurity](https://en.wikipedia.org/wiki/Security_through_obscurity) workaround for misconfigured servers. See the [Avoiding unwelcome visitors on private Matrix servers](https://matrix.org/blog/2019/11/09/avoiding-unwelcome-visitors-on-private-matrix-servers/) `matrix.org` blog article. We believe that people wishing for a truly private server, should [disable federation](docs/configuring-playbook-federation.md#disabling-federation), instead of having a fully-federating server and trying to hide its public rooms. We also provide other workarounds below. We (and the Synapse team, obviously) believe that Matrix should federate by default, so federating the public room list seems to make sense.
+- In Synapse v1.7.0 (~2019), `allow_public_rooms_over_federation` [got disabled](https://github.com/element-hq/synapse/blob/e9069c9f919685606506f04527332e83fbfa44d9/docs/upgrade.md?plain=1#L1877-L1891) by default in a [security-by-obscurity](https://en.wikipedia.org/wiki/Security_through_obscurity) workaround for misconfigured servers. See the [Avoiding unwelcome visitors on private Matrix servers](https://matrix.org/blog/2019/11/09/avoiding-unwelcome-visitors-on-private-matrix-servers/) `matrix.org` blog article. We believe that people wishing for a truly private server, should [disable federation](docs/configuring-playbook-federation.md#disabling-federation), instead of having a fully-federating server and trying to hide its public rooms. We also provide other workarounds below. We (and the Synapse team, obviously) believe that Matrix should federate by default, so federating the public room list seems to make sense.
 
 - [etke.cc](https://etke.cc/) has been developing the free-software [Matrix Rooms Search](https://gitlab.com/etke.cc/mrs) project for a while now. One public (demo) instance of it is hosted at [matrixrooms.info](https://matrixrooms.info/). This search engine tries to go through the Matrix federation and discover & index public rooms to allow people to find them. We believe it's vital for Matrix (and any chat or social network for that matter) to be more discoverable, so that people can find communities and others to talk to. Today (on 23rd of October 2023), `matrixrooms.info` is indexing `23066` Matrix servers. Of these, only `1567` servers (7%) are making their public rooms discoverable. Who knows what wonderful communities and rooms are available on these 93% other Matrix servers that are supposedly federating, but are still gate-keeping their public room list. Indubitably, many of these servers are hosted via matrix-docker-ansible-deploy, so we feel partially responsible for making Matrix federation less useful.
 
@@ -509,7 +876,7 @@ Large Coturn deployments (with a huge range of ports specified via `matrix_cotur
 Such deployments don't need to run Coturn within a private container network anymore. Coturn can now run with host-networking by using configuration like this:
 
 ```yaml
-matrix_coturn_docker_network: host
+matrix_coturn_container_network: host
 ```
 
 With such a configuration, **Docker no longer needs to configure thousands of firewall forwarding rules** each time Coturn starts and stops.
@@ -850,7 +1217,7 @@ You can also control the `background` workers count with `matrix_synapse_workers
 
 ### Appservice worker support is back
 
-We previously had an `appservice` worker type, which [Synapse deprecated in v1.59.0](https://github.com/matrix-org/synapse/blob/v1.59.0/docs/upgrade.md#deprecation-of-the-synapseappappservice-and-synapseappuser_dir-worker-application-types). So did we, at the time.
+We previously had an `appservice` worker type, which [Synapse deprecated in v1.59.0](https://github.com/element-hq/synapse/blob/v1.59.0/docs/upgrade.md#deprecation-of-the-synapseappappservice-and-synapseappuser_dir-worker-application-types). So did we, at the time.
 
 The new way to implement such workers is by using a `generic_worker` and dedicating it to the task of talking to Application Services.
 From now on, we have support for this.
@@ -860,7 +1227,7 @@ You can also control the `appservice` workers count with `matrix_synapse_workers
 
 ### User Directory worker support is back
 
-We previously had a `user_dir` worker type, which [Synapse deprecated in v1.59.0](https://github.com/matrix-org/synapse/blob/v1.59.0/docs/upgrade.md#deprecation-of-the-synapseappappservice-and-synapseappuser_dir-worker-application-types). So did we, at the time.
+We previously had a `user_dir` worker type, which [Synapse deprecated in v1.59.0](https://github.com/element-hq/synapse/blob/v1.59.0/docs/upgrade.md#deprecation-of-the-synapseappappservice-and-synapseappuser_dir-worker-application-types). So did we, at the time.
 
 The new way to implement such workers is by using a `generic_worker` and dedicating it to the task of serving the user directory.
 From now on, we have support for this.
@@ -1056,7 +1423,7 @@ If you're tired of being on an old and problematic Ansible version, you can now 
 
 Synapse v1.60 will try to add a new unique index to `state_group_edges` upon startup and could fail if your database is corrupted.
 
-We haven't observed this problem yet, but [the Synapse v1.60.0 upgrade notes](https://github.com/matrix-org/synapse/blob/v1.60.0/docs/upgrade.md#adding-a-new-unique-index-to-state_group_edges-could-fail-if-your-database-is-corrupted) mention it, so we're giving you a heads up here in case you're unlucky.
+We haven't observed this problem yet, but [the Synapse v1.60.0 upgrade notes](https://github.com/element-hq/synapse/blob/v1.60.0/docs/upgrade.md#adding-a-new-unique-index-to-state_group_edges-could-fail-if-your-database-is-corrupted) mention it, so we're giving you a heads up here in case you're unlucky.
 
 **If Synapse fails to start** after your next playbook run, you'll need to:
 
@@ -1114,7 +1481,7 @@ See our [Setting up borg backup](docs/configuring-playbook-backup-borg.md) docum
 
 ## (Compatibility Break) Upgrading to Synapse v1.57 on setups using workers may require manual action
 
-If you're running a worker setup for Synapse (`matrix_synapse_workers_enabled: true`), the [Synapse v1.57 upgrade notes](https://github.com/matrix-org/synapse/blob/v1.57.0rc1/docs/upgrade.md#changes-to-database-schema-for-application-services) say that you may need to take special care when upgrading:
+If you're running a worker setup for Synapse (`matrix_synapse_workers_enabled: true`), the [Synapse v1.57 upgrade notes](https://github.com/element-hq/synapse/blob/v1.57.0rc1/docs/upgrade.md#changes-to-database-schema-for-application-services) say that you may need to take special care when upgrading:
 
 > Synapse v1.57.0 includes a change to the way transaction IDs are managed for application services. If your deployment uses a dedicated worker for application service traffic, **it must be stopped** when the database is upgraded (which normally happens when the main process is upgraded), to ensure the change is made safely without any risk of reusing transaction IDs.
 
@@ -1195,7 +1562,7 @@ See our [Setting up matrix-hookshot](docs/configuring-playbook-bridge-hookshot.m
 
 We believe that 2022 will be the year of the non-Synapse Matrix server!
 
-The playbook was previously quite [Synapse](https://github.com/matrix-org/synapse)-centric, but can now accommodate multiple homeserver implementations. Only one homeserver implementation can be active (installed) at a given time.
+The playbook was previously quite [Synapse](https://github.com/element-hq/synapse)-centric, but can now accommodate multiple homeserver implementations. Only one homeserver implementation can be active (installed) at a given time.
 
 **Synapse is still the default homeserver implementation** installed by the playbook. A new variable (`matrix_homeserver_implementation`) controls which server implementation is enabled (`synapse` or `dendrite` at the given moment).
 
@@ -1766,7 +2133,7 @@ To restore the old behavior of not redirecting anywhere and serving the Synapse 
 We used to expose the Synapse Admin APIs publicly (at `https://matrix.DOMAIN/_synapse/admin`).
 These APIs require authentication with a valid access token, so it's not that big a deal to expose them.
 
-However, following [official Synapse's reverse-proxying recommendations](https://github.com/matrix-org/synapse/blob/master/docs/reverse_proxy.md#synapse-administration-endpoints), we're no longer exposing `/_synapse/admin` by default.
+However, following [official Synapse's reverse-proxying recommendations](https://github.com/element-hq/synapse/blob/master/docs/reverse_proxy.md#synapse-administration-endpoints), we're no longer exposing `/_synapse/admin` by default.
 
 If you'd like to restore restore the old behavior and expose `/_synapse/admin` publicly, you can use the following configuration (in your `vars.yml`):
 
@@ -2419,7 +2786,7 @@ To avoid doing it manually, run this:
 
 ## Synapse no longer required
 
-The playbook no longer insists on installing [Synapse](https://github.com/matrix-org/synapse) via the `matrix-synapse` role.
+The playbook no longer insists on installing [Synapse](https://github.com/element-hq/synapse) via the `matrix-synapse` role.
 
 If you would prefer to install Synapse another way and just use the playbook to install other services, it should be possible (`matrix_synapse_enabled: false`).
 
@@ -2951,7 +3318,7 @@ If users participate in large rooms with many other servers, disabling presence 
 The playbook now makes the Synapse cache factor configurable, through the playbook's `matrix_synapse_cache_factor` variable (having a default value of `0.5`).
 
 Changing that value allows you to potentially decrease RAM usage or to increase performance by caching more stuff.
-Some information on it is available here: https://github.com/matrix-org/synapse#help-synapse-eats-all-my-ram
+Some information on it is available here: https://github.com/element-hq/synapse#help-synapse-eats-all-my-ram
 
 
 # 2018-09-26

@@ -39,8 +39,6 @@ matrix_bot_go_neb_hostname: "{{ matrix_server_fqn_matrix }}"
 matrix_bot_go_neb_path_prefix: /go-neb
 ```
 
-**NOTE**: When using `matrix-nginx-proxy` instead of Traefik, you won't be able to override the path prefix. You can only override the domain, but that needs to happen using another variable: `matrix_server_fqn_go_neb` (e.g. `matrix_server_fqn_go_neb: "mybot.{{ matrix_domain }}"`).
-
 
 ## Adjusting DNS records
 
@@ -62,7 +60,7 @@ matrix_bot_go_neb_clients:
   - UserID: "@goneb:{{ matrix_domain }}"
     AccessToken: "MDASDASJDIASDJASDAFGFRGER"
     DeviceID: "DEVICE1"
-    HomeserverURL: "{{ matrix_homeserver_container_url }}"
+    HomeserverURL: "{{ matrix_addons_homeserver_client_api_url }}"
     Sync: true
     AutoJoinRooms: true
     DisplayName: "Go-NEB!"
@@ -71,7 +69,7 @@ matrix_bot_go_neb_clients:
   - UserID: "@another_goneb:{{ matrix_domain }}"
     AccessToken: "MDASDASJDIASDJASDAFGFRGER"
     DeviceID: "DEVICE2"
-    HomeserverURL: "{{ matrix_homeserver_container_url }}"
+    HomeserverURL: "{{ matrix_addons_homeserver_client_api_url }}"
     Sync: false
     AutoJoinRooms: false
     DisplayName: "Go-NEB!"
@@ -178,13 +176,13 @@ matrix_bot_go_neb_services:
       Rooms:
         "!someroom:id":
           Repos:
-            "matrix-org/synapse":
+            "element-hq/synapse":
               Events: ["push", "issues"]
             "matrix-org/dendron":
               Events: ["pull_request"]
         "!anotherroom:id":
           Repos:
-            "matrix-org/synapse":
+            "element-hq/synapse":
               Events: ["push", "issues"]
             "matrix-org/dendron":
               Events: ["pull_request"]

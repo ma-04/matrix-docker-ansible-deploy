@@ -22,7 +22,7 @@ matrix_beeper_linkedin_config_path: "{{ matrix_beeper_linkedin_base_path }}/conf
 matrix_beeper_linkedin_data_path: "{{ matrix_beeper_linkedin_base_path }}/data"
 matrix_beeper_linkedin_docker_src_files_path: "{{ matrix_beeper_linkedin_base_path }}/docker-src"
 
-matrix_beeper_linkedin_homeserver_address: "{{ matrix_homeserver_container_url }}"
+matrix_beeper_linkedin_homeserver_address: ""
 matrix_beeper_linkedin_homeserver_domain: "{{ matrix_domain }}"
 matrix_beeper_linkedin_appservice_address: "http://matrix-beeper-linkedin:29319"
 
@@ -38,11 +38,20 @@ matrix_beeper_linkedin_bridge_permissions: |
     | combine({matrix_admin: 'admin'} if matrix_admin else {})
   }}
 
+matrix_beeper_linkedin_container_network: ""
+
+matrix_beeper_linkedin_container_additional_networks: "{{ matrix_beeper_linkedin_container_additional_networks_auto + matrix_beeper_linkedin_container_additional_networks_custom }}"
+matrix_beeper_linkedin_container_additional_networks_auto: []
+matrix_beeper_linkedin_container_additional_networks_custom: []
+
 # A list of extra arguments to pass to the container
 matrix_beeper_linkedin_container_extra_arguments: []
 
 # List of systemd services that matrix-beeper-linkedin.service depends on.
-matrix_beeper_linkedin_systemd_required_services_list: ['docker.service']
+matrix_beeper_linkedin_systemd_required_services_list: "{{ matrix_beeper_linkedin_systemd_required_services_list_default + matrix_beeper_linkedin_systemd_required_services_list_auto + matrix_beeper_linkedin_systemd_required_services_list_custom }}"
+matrix_beeper_linkedin_systemd_required_services_list_default: ['docker.service']
+matrix_beeper_linkedin_systemd_required_services_list_auto: []
+matrix_beeper_linkedin_systemd_required_services_list_custom: []
 
 # List of systemd services that matrix-beeper-linkedin.service wants
 matrix_beeper_linkedin_systemd_wanted_services_list: []

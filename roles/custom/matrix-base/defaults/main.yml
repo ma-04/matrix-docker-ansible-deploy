@@ -19,6 +19,23 @@ matrix_bridges_encryption_enabled: false
 # Global var to enable/disable relay mode across all bridges with relay mode support
 matrix_bridges_relay_enabled: false
 
+# A container network where all addon services (bridges, bots, etc.) would live.
+matrix_addons_container_network: matrix-addons
+
+# The container network that the homeserver lives on and addon services (bridges, bots, etc.) should be connected to
+matrix_addons_homeserver_container_network: "{{ matrix_homeserver_container_network }}"
+
+# The URL where addon services (bridges, bots, etc.) can reach the homeserver.
+# By default, this is configured to go directly to the homeserver, but the playbook may
+# override it to go through an intermediary service.
+matrix_addons_homeserver_client_api_url: "{{ matrix_homeserver_container_url }}"
+
+# The systemd services (representing the homeserver) that addon services (bridges, bots, etc.) should depend on
+matrix_addons_homeserver_systemd_services_list: "{{ matrix_homeserver_systemd_services_list }}"
+
+# A container network where all monitoring services would live.
+matrix_monitoring_container_network: matrix-monitoring
+
 # matrix_homeserver_enabled controls whether to enable the homeserver systemd service, etc.
 #
 # Unless you're wrapping this playbook in another one
@@ -27,21 +44,6 @@ matrix_bridges_relay_enabled: false
 # Note: disabling this does not mean that a homeserver won't get installed.
 # Whether homeserver software is installed depends on other (`matrix_HOMESERVER_enabled`) variables - see `group_vars/matrix_servers`.
 matrix_homeserver_enabled: true
-
-# Homeserver admin contacts and support page as per MSC 1929
-# See: https://github.com/matrix-org/matrix-spec-proposals/pull/1929
-# Users in form:
-# matrix_homeserver_admin_contacts:
-#   - matrix_id: @admin:domain.tld
-#     email_address: admin@domain.tld
-#     role: admin
-#   - email_address: security@domain.tld
-#     role: security
-# Also see: `matrix_well_known_matrix_support_enabled`
-matrix_homeserver_admin_contacts: []
-# Url string like https://domain.tld/support.html
-# Also see: `matrix_well_known_matrix_support_enabled`
-matrix_homeserver_support_url: ''
 
 # This will contain the homeserver implementation that is in use.
 # Valid values: synapse, dendrite, conduit
@@ -108,7 +110,14 @@ matrix_server_fqn_rageshake: "rageshake.{{ matrix_domain }}"
 matrix_federation_public_port: 8448
 
 # The name of the Traefik entrypoint for handling Matrix Federation
-matrix_federation_traefik_entrypoint: matrix-federation
+# Also see the `matrix_playbook_public_matrix_federation_api_traefik_entrypoint_*` variables.
+matrix_federation_traefik_entrypoint_name: matrix-federation
+
+# Controls whether the federation entrypoint supports TLS.
+# TLS is force-enabled here, because the spec (https://spec.matrix.org/v1.9/server-server-api/#tls) says that the federation API must use HTTPS.
+# This may be changed at the playbook level for setups explicitly disabling TLS.
+# `matrix_playbook_ssl_enabled` has no influence over this.
+matrix_federation_traefik_entrypoint_tls: true
 
 # The architecture that your server runs.
 # Recognized values by us are 'amd64', 'arm32' and 'arm64'.
@@ -137,8 +146,6 @@ matrix_base_data_path_mode: "750"
 
 matrix_bin_path: "{{ matrix_base_data_path }}/bin"
 
-matrix_static_files_base_path: "{{ matrix_base_data_path }}/static-files"
-
 matrix_host_command_sleep: "/usr/bin/env sleep"
 matrix_host_command_chown: "/usr/bin/env chown"
 matrix_host_command_fusermount: "/usr/bin/env fusermount"
@@ -146,15 +153,33 @@ matrix_host_command_openssl: "/usr/bin/env openssl"
 
 matrix_homeserver_url: "https://{{ matrix_server_fqn_matrix }}"
 
-# Specifies where the homeserver's Client-Server API is on the container network.
-# Where this is depends on whether there's a reverse-proxy in front of the homeserver, which homeserver it is, etc.
-# This likely gets overriden elsewhere.
-matrix_homeserver_container_url: ""
+# Specifies on which container network the homeserver is.
+matrix_homeserver_container_network: "matrix-homeserver"
 
-# Specifies where the homeserver's Federation API is on the container network.
+# Specifies whether the homeserver will federate at all.
+# Disable this to completely isolate your server from the rest of the Matrix network.
+matrix_homeserver_federation_enabled: true
+
+# Specifies which systemd services are responsible for the homeserver
+matrix_homeserver_systemd_services_list: []
+
+# Specifies where the homeserver's Client-Server API is on the container network (matrix_homeserver_container_network).
+# Most services that need to reach the homeserver do not use `matrix_homeserver_container_url`, but
+# rather `matrix_addons_homeserver_client_api_url`.
+matrix_homeserver_container_url: "http://{{ matrix_homeserver_container_client_api_endpoint }}"
+
+# Specifies where the homeserver's Client-Server API is on the container network (matrix_homeserver_container_network).
 # Where this is depends on whether there's a reverse-proxy in front of the homeserver, which homeserver it is, etc.
 # This likely gets overriden elsewhere.
-matrix_homeserver_container_federation_url: ""
+matrix_homeserver_container_client_api_endpoint: ""
+
+# Specifies where the homeserver's Federation API is on the container network (matrix_homeserver_container_network).
+matrix_homeserver_container_federation_url: "http://{{ matrix_homeserver_container_federation_api_endpoint }}"
+
+# Specifies where the homeserver's Federation API is on the container network (matrix_homeserver_container_network).
+# Where this is depends on whether there's a reverse-proxy in front of the homeserver, which homeserver it is, etc.
+# This likely gets overriden elsewhere.
+matrix_homeserver_container_federation_api_endpoint: ""
 
 # Specifies the public url of the Sync v3 (sliding-sync) API.
 # This will be used to set the `org.matrix.msc3575.proxy` property in `/.well-known/matrix/client`.
@@ -167,132 +192,17 @@ matrix_identity_server_url: ~
 matrix_integration_manager_rest_url: ~
 matrix_integration_manager_ui_url: ~
 
-# The domain name where a Jitsi server is self-hosted.
-# If set, `/.well-known/matrix/client` will suggest Element clients to use that Jitsi server.
-# See: https://github.com/element-hq/element-web/blob/develop/docs/jitsi.md#configuring-element-to-use-your-self-hosted-jitsi-server
-matrix_client_element_jitsi_preferred_domain: ''  # noqa var-naming
-
-# Controls whether Element should use End-to-End Encryption by default.
-# Setting this to false will update `/.well-known/matrix/client` and tell Element clients to avoid E2EE.
-# See: https://github.com/element-hq/element-web/blob/develop/docs/e2ee.md
-matrix_well_known_matrix_client_io_element_e2ee_default: true
-
-# Controls whether Element should require a secure backup set up before Element can be used.
-# Setting this to true will update `/.well-known/matrix/client` and tell Element require a secure backup.
-# See: https://github.com/element-hq/element-web/blob/develop/docs/e2ee.md
-matrix_well_known_matrix_client_io_element_e2ee_secure_backup_required: false
-
-# Controls which backup methods from ["key", "passphrase"] should be used, both is the default.
-# Setting this to other then empty will update `/.well-known/matrix/client` and tell Element which method to use
-# See: https://github.com/element-hq/element-web/blob/develop/docs/e2ee.md
-matrix_well_known_matrix_client_io_element_e2ee_secure_backup_setup_methods: []
-
-# Controls whether element related entries should be added to the client well-known. Override this to false to hide
-# element related well-known entries.
-# By default if any of the following change from their default this is set to true:
-# `matrix_well_known_matrix_client_io_element_e2ee_default`
-# `matrix_well_known_matrix_client_io_element_e2ee_secure_backup_required`
-# `matrix_well_known_matrix_client_io_element_e2ee_secure_backup_setup_methods`
-matrix_well_known_matrix_client_io_element_e2ee_entries_enabled: "{{ not matrix_well_known_matrix_client_io_element_e2ee_default or matrix_well_known_matrix_client_io_element_e2ee_secure_backup_required or matrix_well_known_matrix_client_io_element_e2ee_secure_backup_setup_methods | length > 0 }}"
-
-# Default `/.well-known/matrix/client` configuration - it covers the generic use case.
-# You can customize it by controlling the various variables inside the template file that it references.
-#
-# For a more advanced customization, you can extend the default (see `matrix_well_known_matrix_client_configuration_extension_json`)
-# or completely replace this variable with your own template.
-#
-# The side-effect of this lookup is that Ansible would even parse the JSON for us, returning a dict.
-# This is unlike what it does when looking up YAML template files (no automatic parsing there).
-matrix_well_known_matrix_client_configuration_default: "{{ lookup('template', 'templates/static-files/well-known/matrix-client.j2') }}"
-
-# Your custom JSON configuration for `/.well-known/matrix/client` should go to `matrix_well_known_matrix_client_configuration_extension_json`.
-# This configuration extends the default starting configuration (`matrix_well_known_matrix_client_configuration_default`).
-#
-# You can override individual variables from the default configuration, or introduce new ones.
-#
-# If you need something more special, you can take full control by
-# completely redefining `matrix_well_known_matrix_client_configuration`.
-#
-# Example configuration extension follows:
-#
-# matrix_well_known_matrix_client_configuration_extension_json: |
-#   {
-#     "io.element.call_behaviour": {
-#       "widget_build_url": "https://dimension.example.com/api/v1/dimension/bigbluebutton/widget_state"
-#     }
-#   }
-matrix_well_known_matrix_client_configuration_extension_json: '{}'
-
-matrix_well_known_matrix_client_configuration_extension: "{{ matrix_well_known_matrix_client_configuration_extension_json | from_json if matrix_well_known_matrix_client_configuration_extension_json | from_json is mapping else {} }}"
-
-# Holds the final `/.well-known/matrix/client` configuration (a combination of the default and its extension).
-# You most likely don't need to touch this variable. Instead, see `matrix_well_known_matrix_client_configuration_default` and `matrix_well_known_matrix_client_configuration_extension_json`.
-matrix_well_known_matrix_client_configuration: "{{ matrix_well_known_matrix_client_configuration_default | combine(matrix_well_known_matrix_client_configuration_extension, recursive=True) }}"
-
-# Default `/.well-known/matrix/server` configuration - it covers the generic use case.
-# You can customize it by controlling the various variables inside the template file that it references.
-#
-# For a more advanced customization, you can extend the default (see `matrix_well_known_matrix_server_configuration_extension_json`)
-# or completely replace this variable with your own template.
-#
-# The side-effect of this lookup is that Ansible would even parse the JSON for us, returning a dict.
-# This is unlike what it does when looking up YAML template files (no automatic parsing there).
-matrix_well_known_matrix_server_configuration_default: "{{ lookup('template', 'templates/static-files/well-known/matrix-server.j2') }}"
-
-# Your custom JSON configuration for `/.well-known/matrix/server` should go to `matrix_well_known_matrix_server_configuration_extension_json`.
-# This configuration extends the default starting configuration (`matrix_well_known_matrix_server_configuration_default`).
-#
-# You can override individual variables from the default configuration, or introduce new ones.
-#
-# If you need something more special, you can take full control by
-# completely redefining `matrix_well_known_matrix_server_configuration`.
-#
-# Example configuration extension follows:
-#
-# matrix_well_known_matrix_server_configuration_extension_json: |
-#   {
-#     "something": "another"
-#   }
-matrix_well_known_matrix_server_configuration_extension_json: '{}'
-
-matrix_well_known_matrix_server_configuration_extension: "{{ matrix_well_known_matrix_server_configuration_extension_json | from_json if matrix_well_known_matrix_server_configuration_extension_json | from_json is mapping else {} }}"
-
-# Holds the final `/.well-known/matrix/server` configuration (a combination of the default and its extension).
-# You most likely don't need to touch this variable. Instead, see `matrix_well_known_matrix_server_configuration_default` and `matrix_well_known_matrix_server_configuration_extension_json`.
-matrix_well_known_matrix_server_configuration: "{{ matrix_well_known_matrix_server_configuration_default | combine(matrix_well_known_matrix_server_configuration_extension, recursive=True) }}"
-
-# The side-effect of this lookup is that Ansible would even parse the JSON for us, returning a dict.
-# This is unlike what it does when looking up YAML template files (no automatic parsing there).
-matrix_well_known_matrix_support_configuration_default: "{{ lookup('template', 'templates/static-files/well-known/matrix-support.j2') }}"
-
-matrix_well_known_matrix_support_configuration_extension_json: '{}'
-
-matrix_well_known_matrix_support_configuration_extension: "{{ matrix_well_known_matrix_support_configuration_extension_json | from_json if matrix_well_known_matrix_support_configuration_extension_json | from_json is mapping else {} }}"
-
-# Holds the final `/.well-known/matrix/support` configuration (a combination of the default and its extension).
-# You most likely don't need to touch this variable. Instead, see `matrix_well_known_matrix_support_configuration_default` and `matrix_well_known_matrix_support_configuration_extension_json`.
-matrix_well_known_matrix_support_configuration: "{{ matrix_well_known_matrix_support_configuration_default | combine(matrix_well_known_matrix_support_configuration_extension, recursive=True) }}"
-
-# The Docker network that all services would be put into
-matrix_docker_network: "matrix"
-
-# Controls whether a `/.well-known/matrix/server` file is generated and used at all.
-#
-# If you wish to rely on DNS SRV records only, you can disable this.
-# Using DNS SRV records implies that you'll be handling Matrix Federation API traffic (tcp/8448)
-# using certificates for the base domain (`matrix_domain`) and not for the
-# matrix domain (`matrix_server_fqn_matrix`).
-matrix_well_known_matrix_server_enabled: true
-
-# Controls whether a `/.well-known/matrix/support` file is generated and used at all.
-# For details about this file, see the spec: https://github.com/matrix-org/matrix-spec-proposals/pull/1929
-#
-# This is not enabled by default, as for it to be useful, other information is necessary.
-# See `matrix_homeserver_admin_contacts`, `matrix_homeserver_support_url`, etc.
-matrix_well_known_matrix_support_enabled: false
-
 matrix_homeserver_container_extra_arguments_auto: []
 matrix_homeserver_app_service_config_files_auto: []
+
+# Controls whether various services should expose metrics publicly.
+# If Prometheus is operating on the same machine, exposing metrics publicly is not necessary.
+matrix_metrics_exposure_enabled: false
+matrix_metrics_exposure_hostname: "{{ matrix_server_fqn_matrix }}"
+matrix_metrics_exposure_path_prefix: /metrics
+matrix_metrics_exposure_http_basic_auth_enabled: false
+# See https://doc.traefik.io/traefik/middlewares/http/basicauth/#users
+matrix_metrics_exposure_http_basic_auth_users: ''
 
 # Specifies the type of reverse-proxy used by the playbook.
 #
@@ -305,12 +215,6 @@ matrix_homeserver_app_service_config_files_auto: []
 #     - the playbook will run a managed Traefik instance (matrix-traefik)
 #     - Traefik will do SSL termination, unless you disable it (e.g. `devture_traefik_config_entrypoint_web_secure_enabled: false`)
 #     - if SSL termination is enabled (as it is by default), you need to populate: `devture_traefik_config_certificatesResolvers_acme_email`
-#     - it will also install matrix-nginx-proxy in local-only mode, while we migrate the rest of the services to a Traefik-native mode of working
-#
-# - `playbook-managed-nginx`
-#     - the playbook will install matrix-nginx-proxy
-#     - matrix-nginx-proxy will do SSL termination with Certbot, unless you change that (see `matrix_ssl_retrieval_method`)
-#     - if SSL termination is enabled (as it is by default), you need to populate: `matrix_ssl_lets_encrypt_support_email`
 #
 # - `other-traefik-container`
 #     - this playbook will not install Traefik
@@ -319,27 +223,87 @@ matrix_homeserver_app_service_config_files_auto: []
 #     - you need to set `matrix_playbook_reverse_proxyable_services_additional_network` to the name of your Traefik network
 #     - Traefik certs dumper will be enabled by default (`devture_traefik_certs_dumper_enabled`). You need to point it to your Traefik's SSL certificates (`devture_traefik_certs_dumper_ssl_dir_path`)
 #
-# - `other-nginx-non-container`
-#     - the playbook will not install matrix-nginx-proxy
-#     - however, it will still dump some nginx configuration in /matrix/nginx/conf.d
-#     - these configs are meant to be included into a locally-installed (without a container) nginx server
-#     - all container services are exposed locally (e.g. `-p 127.0.0.1:8080:8080`)
-#
-# - `other-on-same-host`
-#     - like other-nginx-non-container, but supposedly won't generate useless configuration in /matrix/nginx/conf.d in the future
-#
-# - `other-on-another-host`
-#     - like other-on-same-host, but services are exposed on all interfaces (e.g. `-p 0.0.0.0:8080:8080`)
-#     - configurable via `matrix_playbook_service_host_bind_interface_prefix`
-#
 # - `none`
 #     - no reverse-proxy will be installed
-#     - no nginx configuration will be dumped in /matrix/nginx/conf.d
 #     - no port exposure will be done for any of the container services
 #     - it's up to you to expose the ports you want, etc.
+#     - this is unlikely to work well (if at all)
 matrix_playbook_reverse_proxy_type: ''
 
-matrix_playbook_service_host_bind_interface_prefix: "{{ '' if matrix_playbook_reverse_proxy_type not in ['other-nginx-non-container', 'other-on-same-host', 'other-on-another-host'] else ('0.0.0.0:' if matrix_playbook_reverse_proxy_type == 'other-on-another-host' else '127.0.0.1:') }}"
+# Specifies the network that the reverse-proxy is operating at
+matrix_playbook_reverse_proxy_container_network: 'traefik'
+
+# Specifies the hostname that the reverse-proxy is available at
+matrix_playbook_reverse_proxy_hostname: 'matrix-traefik'
+
+# Controls the additional network that reverse-proxyable services will be connected to.
+matrix_playbook_reverse_proxyable_services_additional_network: "{{ matrix_playbook_reverse_proxy_container_network }}"
+
+# Controls if various services think if SSL is enabled or not.
+# Disabling this does not actually disable Treafik's web-secure entrypoint and TLS termination settings.
+# For that, you'd need to use another variable (`devture_traefik_config_entrypoint_web_secure_enabled`).
+# This variable merely serves as an indicator if SSL is used or not.
+matrix_playbook_ssl_enabled: true
+
+# Controls on which network interface services are exposed.
+# You can use this to tell all services to expose themselves on the loopback interface, on a local network IP or or publicly.
+# Possibly not all services support exposure via this variable.
+# We recommend not using it.
+#
+# Example value: `127.0.0.1:` (note the trailing `:`).
+matrix_playbook_service_host_bind_interface_prefix: ""
+
+# Controls whether to enable an additional Traefik entrypoint for the purpose of serving Matrix Federation.
+# By default, federation is served on a special port (8448), so a separate entrypoint is necessary.
+# Group variables may influence whether this is enabled based on the port number and on the default entrypoints of the Traefik reverse-proxy.
+matrix_playbook_public_matrix_federation_api_traefik_entrypoint_enabled: true
+matrix_playbook_public_matrix_federation_api_traefik_entrypoint_name: "{{ matrix_federation_traefik_entrypoint_name }}"
+matrix_playbook_public_matrix_federation_api_traefik_entrypoint_port: "{{ matrix_federation_public_port }}"
+matrix_playbook_public_matrix_federation_api_traefik_entrypoint_host_bind_port: "{{ matrix_federation_public_port }}"
+matrix_playbook_public_matrix_federation_api_traefik_entrypoint_config: "{{ matrix_playbook_public_matrix_federation_api_traefik_entrypoint_config_auto | combine(matrix_playbook_public_matrix_federation_api_traefik_entrypoint_config_custom, recursive=True) }}"
+matrix_playbook_public_matrix_federation_api_traefik_entrypoint_config_auto: {}
+matrix_playbook_public_matrix_federation_api_traefik_entrypoint_config_custom: {}
+
+matrix_playbook_public_matrix_federation_api_traefik_entrypoint_definition:
+  name: "{{ matrix_playbook_public_matrix_federation_api_traefik_entrypoint_name }}"
+  port: "{{ matrix_playbook_public_matrix_federation_api_traefik_entrypoint_port }}"
+  host_bind_port: "{{ matrix_playbook_public_matrix_federation_api_traefik_entrypoint_host_bind_port }}"
+  config: "{{ matrix_playbook_public_matrix_federation_api_traefik_entrypoint_config }}"
+
+# Controls whether to enable an additional Traefik entrypoint for the purpose of serving the homeserver's Client-Server API internally.
+#
+# Homeserver software and other core components which are part of the homeserver's Client-Server API
+# may wish to register their routes with this additional entrypoint and provide their services on it for internal (no-public-network and non-TLS) use.
+#
+# This entrypoint provides local addons (e.g. bridges, bots, etc.) with the ability to easily & quickly communicate with the homeserver and/or related software.
+# Such services can reach the homeserver over the public internet (e.g. https://matrix.DOMAIN), but this is slow due to networking and SSL-termination.
+# Talking directly to the homeserver (e.g. `http://matrix-synapse:8008`) is another option, but does not allow other homeserver-related software
+# (e.g. identity servers like ma1sd, media repository servers like matrix-media-repo, firewalls like matrix-corporal)
+# to register itself for certain homeserver routes.
+#
+# For example: when matrix-media-repo is enabled, it wishes to handle `/_matrix/media` both publicly and internally.
+# Bots/bridges that try to upload media should not hit `/_matrix/media` on the homeserver directly, but actually go through matrix-media-repo.
+#
+# This entrypoint gives us a layer of indirection, so that all these homeserver-related services can register themselves on this entrypoint
+# the same way they register themselves for the public (e.g. `web-secure`) entrypoint.
+#
+# Routers enabled on this entrypoint should use Traefik rules which do NOT do Host-matching (Host/HostRegexp),
+# because addon services (e.g. bridges, bots) cannot properly pass a `Host` HTTP header when making
+# requests to the endpoint's address (e.g. `http://devture-traefik:8008/`).
+# This entrypoint only aims to handle a single "virtual host" - one dealing with the homeserver's Client-Server API.
+matrix_playbook_internal_matrix_client_api_traefik_entrypoint_enabled: "{{ matrix_playbook_reverse_proxy_type in ['playbook-managed-traefik', 'other-traefik-container'] }}"
+matrix_playbook_internal_matrix_client_api_traefik_entrypoint_name: matrix-internal-matrix-client-api
+matrix_playbook_internal_matrix_client_api_traefik_entrypoint_port: 8008
+matrix_playbook_internal_matrix_client_api_traefik_entrypoint_host_bind_port: ''
+matrix_playbook_internal_matrix_client_api_traefik_entrypoint_config: "{{ matrix_playbook_internal_matrix_client_api_traefik_entrypoint_config_auto | combine(matrix_playbook_internal_matrix_client_api_traefik_entrypoint_config_custom, recursive=True) }}"
+matrix_playbook_internal_matrix_client_api_traefik_entrypoint_config_auto: {}
+matrix_playbook_internal_matrix_client_api_traefik_entrypoint_config_custom: {}
+
+matrix_playbook_internal_matrix_client_api_traefik_entrypoint_definition:
+  name: "{{ matrix_playbook_internal_matrix_client_api_traefik_entrypoint_name }}"
+  port: "{{ matrix_playbook_internal_matrix_client_api_traefik_entrypoint_port }}"
+  host_bind_port: "{{ matrix_playbook_internal_matrix_client_api_traefik_entrypoint_host_bind_port }}"
+  config: "{{ matrix_playbook_internal_matrix_client_api_traefik_entrypoint_config }}"
 
 # Variables to Control which parts of our roles run.
 run_postgres_import: true

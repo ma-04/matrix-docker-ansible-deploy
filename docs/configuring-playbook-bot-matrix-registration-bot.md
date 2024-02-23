@@ -3,8 +3,7 @@
 The playbook can install and configure [matrix-registration-bot](https://github.com/moan0s/matrix-registration-bot) for you.
 
 The bot allows you to easily **create and manage registration tokens** aka. invitation codes.
-It can be used for an invitation-based server,
-where you invite someone by sending them a registration token (loook like this: `rbalQ0zkaDSRQCOp`). They can register as normal but have to provide a valid registration token in a final step of the registration.
+It can be used for an invitation-based server, where you invite someone by sending them a registration token (tokens look like this: `rbalQ0zkaDSRQCOp`). They can register as per normal but have to provide a valid registration token in the final step of the registration process.
 
 See the project's [documentation](https://github.com/moan0s/matrix-registration-bot#supported-commands) to learn what it
 does and why it might be useful to you.
@@ -17,9 +16,8 @@ To enable the bot, add the following configuration to your `inventory/host_vars/
 ```yaml
 matrix_bot_matrix_registration_bot_enabled: true
 
-#By default, the playbook will set use the bot with a username like 
-## this: `@bot.matrix-registration-bot:DOMAIN`.
-# To use a different username, uncomment & adjust the variable.
+# By default, the playbook will set use the bot with a username like this: `@bot.matrix-registration-bot:DOMAIN`.
+# To use a different username, uncomment & adjust the variable below:
 # matrix_bot_matrix_registration_bot_matrix_user_id_localpart: bot.matrix-registration-bot
 
 # Generate a strong password here. Consider generating it with `pwgen -s 64 1`
@@ -32,16 +30,11 @@ matrix_synapse_enable_registration: true
 matrix_synapse_registration_requires_token: true
 ```
 
-The bot account will be automatically created.
+The bot account will be created automatically.
 
 ## Installing
 
-After configuring the playbook, run the [installation](installing.md) command again:
-
-```
-ansible-playbook -i inventory/hosts setup.yml --tags=setup-all,start
-```
-
+After configuring the playbook, re-run the [installation](installing.md) command again: `just install-all` or `just setup-all`
 
 ## Usage
 

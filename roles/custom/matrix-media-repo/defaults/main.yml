@@ -19,7 +19,7 @@ matrix_media_repo_docker_image_path: "turt2live/matrix-media-repo"
 matrix_media_repo_docker_image: "{{ matrix_media_repo_docker_image_name_prefix }}{{ matrix_media_repo_docker_image_path }}:{{ matrix_media_repo_docker_image_tag }}"
 matrix_media_repo_docker_image_name_prefix: "{{ 'localhost/' if matrix_media_repo_container_image_self_build else matrix_container_global_registry_prefix }}"
 # renovate: datasource=docker depName=turt2live/matrix-media-repo
-matrix_media_repo_docker_image_tag: "v1.3.3"
+matrix_media_repo_docker_image_tag: "v1.3.4"
 matrix_media_repo_docker_image_force_pull: "{{ matrix_media_repo_docker_image.endswith(':latest') }}"
 
 matrix_media_repo_base_path: "{{ matrix_base_data_path }}/{{ matrix_media_repo_identifier }}"
@@ -27,10 +27,13 @@ matrix_media_repo_config_path: "{{ matrix_media_repo_base_path }}/config"
 matrix_media_repo_data_path: "{{ matrix_media_repo_base_path }}/data"
 matrix_media_repo_docker_src_files_path: "{{ matrix_media_repo_base_path }}/docker-src"
 
-# List of systemd services that matrix-conduit.service depends on
-matrix_media_repo_systemd_required_services_list: ["docker.service"]
+# List of systemd services that matrix-media-repo.service depends on
+matrix_media_repo_systemd_required_services_list: "{{ matrix_media_repo_systemd_required_services_list_default + matrix_media_repo_systemd_required_services_list_auto + matrix_media_repo_systemd_required_services_list_custom }}"
+matrix_media_repo_systemd_required_services_list_default: ["docker.service"]
+matrix_media_repo_systemd_required_services_list_auto: []
+matrix_media_repo_systemd_required_services_list_custom: []
 
-# List of systemd services that matrix-conduit.service wants
+# List of systemd services that matrix-media-repo.service wants
 matrix_media_repo_systemd_wanted_services_list: []
 
 # The base container network. It will be auto-created by this role if it doesn't exist already.
@@ -60,20 +63,28 @@ matrix_media_repo_container_extra_arguments: []
 # To inject your own other container labels, see `matrix_media_repo_container_labels_additional_labels`.
 matrix_media_repo_container_labels_traefik_enabled: true
 matrix_media_repo_container_labels_traefik_docker_network: "{{ matrix_media_repo_container_network }}"
+matrix_media_repo_container_labels_traefik_entrypoints: web-secure
 
 matrix_media_repo_container_labels_traefik_media_path_prefix: "/_matrix/media"
 matrix_media_repo_container_labels_traefik_media_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_media_path_prefix | quote }}`)"
 matrix_media_repo_container_labels_traefik_media_priority: 0
-matrix_media_repo_container_labels_traefik_media_entrypoints: web-secure
+matrix_media_repo_container_labels_traefik_media_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
 matrix_media_repo_container_labels_traefik_media_tls: "{{ matrix_media_repo_container_labels_traefik_media_entrypoints != 'web' }}"
 matrix_media_repo_container_labels_traefik_media_tls_certResolver: default  # noqa var-naming
+
+# This is like `matrix_media_repo_container_labels_traefik_media_*`, but on an internal Traefik entrypoint.
+matrix_media_repo_container_labels_traefik_internal_media_enabled: false
+matrix_media_repo_container_labels_traefik_internal_media_path_prefix: "{{ matrix_media_repo_container_labels_traefik_media_path_prefix }}"
+matrix_media_repo_container_labels_traefik_internal_media_rule: "PathPrefix(`{{ matrix_media_repo_container_labels_traefik_internal_media_path_prefix | quote }}`)"
+matrix_media_repo_container_labels_traefik_internal_media_priority: "{{ matrix_media_repo_container_labels_traefik_media_priority }}"
+matrix_media_repo_container_labels_traefik_internal_media_entrypoints: ""
 
 # /_matrix/client/r0/logout
 # /_matrix/client/r0/logout/all
 matrix_media_repo_container_labels_traefik_logout_path_prefix: "/_matrix/client/{version:(r0|v1|v3|unstable)}/{endpoint:(logout|logout/all)}"
 matrix_media_repo_container_labels_traefik_logout_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_logout_path_prefix }}`)"
 matrix_media_repo_container_labels_traefik_logout_priority: 0
-matrix_media_repo_container_labels_traefik_logout_entrypoints: web-secure
+matrix_media_repo_container_labels_traefik_logout_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
 matrix_media_repo_container_labels_traefik_logout_tls: "{{ matrix_media_repo_container_labels_traefik_logout_entrypoints != 'web' }}"
 matrix_media_repo_container_labels_traefik_logout_tls_certResolver: default  # noqa var-naming
 
@@ -82,14 +93,14 @@ matrix_media_repo_container_labels_traefik_logout_tls_certResolver: default  # n
 matrix_media_repo_container_labels_traefik_admin_path_prefix: "/_matrix/client/{version:(r0|v1|v3|unstable)}/admin/{endpoint:(purge_media_cache|quarantine_media/.*)}"
 matrix_media_repo_container_labels_traefik_admin_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_admin_path_prefix }}`)"
 matrix_media_repo_container_labels_traefik_admin_priority: 0
-matrix_media_repo_container_labels_traefik_admin_entrypoints: web-secure
+matrix_media_repo_container_labels_traefik_admin_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
 matrix_media_repo_container_labels_traefik_admin_tls: "{{ matrix_media_repo_container_labels_traefik_admin_entrypoints != 'web' }}"
 matrix_media_repo_container_labels_traefik_admin_tls_certResolver: default  # noqa var-naming
 
 matrix_media_repo_container_labels_traefik_t2bot_path_prefix: "/_matrix/client/unstable/io.t2bot.media"
 matrix_media_repo_container_labels_traefik_t2bot_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_t2bot_path_prefix | quote }}`)"
 matrix_media_repo_container_labels_traefik_t2bot_priority: 0
-matrix_media_repo_container_labels_traefik_t2bot_entrypoints: web-secure
+matrix_media_repo_container_labels_traefik_t2bot_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
 matrix_media_repo_container_labels_traefik_t2bot_tls: "{{ matrix_media_repo_container_labels_traefik_t2bot_entrypoints != 'web' }}"
 matrix_media_repo_container_labels_traefik_t2bot_tls_certResolver: default  # noqa var-naming
 
@@ -97,7 +108,7 @@ matrix_media_repo_container_labels_traefik_t2bot_tls_certResolver: default  # no
 matrix_media_repo_container_labels_traefik_media_federation_path_prefix: "/_matrix/media"
 matrix_media_repo_container_labels_traefik_media_federation_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_media_path_prefix | quote }}`)"
 matrix_media_repo_container_labels_traefik_media_federation_priority: 0
-matrix_media_repo_container_labels_traefik_media_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint }}"
+matrix_media_repo_container_labels_traefik_media_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint_name }}"
 matrix_media_repo_container_labels_traefik_media_federation_tls: "{{ matrix_media_repo_container_labels_traefik_media_entrypoints != 'web' }}"
 matrix_media_repo_container_labels_traefik_media_federation_tls_certResolver: default  # noqa var-naming
 
@@ -106,7 +117,7 @@ matrix_media_repo_container_labels_traefik_media_federation_tls_certResolver: de
 matrix_media_repo_container_labels_traefik_logout_federation_path_prefix: "/_matrix/client/{version:(r0|v1|v3|unstable)}/{endpoint:(logout|logout/all)}"
 matrix_media_repo_container_labels_traefik_logout_federation_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_logout_path_prefix }}`)"
 matrix_media_repo_container_labels_traefik_logout_federation_priority: 0
-matrix_media_repo_container_labels_traefik_logout_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint }}"
+matrix_media_repo_container_labels_traefik_logout_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint_name }}"
 matrix_media_repo_container_labels_traefik_logout_federation_tls: "{{ matrix_media_repo_container_labels_traefik_logout_entrypoints != 'web' }}"
 matrix_media_repo_container_labels_traefik_logout_federation_tls_certResolver: default  # noqa var-naming
 
@@ -115,14 +126,14 @@ matrix_media_repo_container_labels_traefik_logout_federation_tls_certResolver: d
 matrix_media_repo_container_labels_traefik_admin_federation_path_prefix: "/_matrix/client/{version:(r0|v1|v3|unstable)}/admin/{endpoint:(purge_media_cache|quarantine_media/.*)}"
 matrix_media_repo_container_labels_traefik_admin_federation_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_admin_path_prefix }}`)"
 matrix_media_repo_container_labels_traefik_admin_federation_priority: 0
-matrix_media_repo_container_labels_traefik_admin_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint }}"
+matrix_media_repo_container_labels_traefik_admin_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint_name }}"
 matrix_media_repo_container_labels_traefik_admin_federation_tls: "{{ matrix_media_repo_container_labels_traefik_admin_entrypoints != 'web' }}"
 matrix_media_repo_container_labels_traefik_admin_federation_tls_certResolver: default  # noqa var-naming
 
 matrix_media_repo_container_labels_traefik_t2bot_federation_path_prefix: "/_matrix/client/unstable/io.t2bot.media"
 matrix_media_repo_container_labels_traefik_t2bot_federation_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_t2bot_path_prefix | quote }}`)"
 matrix_media_repo_container_labels_traefik_t2bot_federation_priority: 0
-matrix_media_repo_container_labels_traefik_t2bot_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint }}"
+matrix_media_repo_container_labels_traefik_t2bot_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint_name }}"
 matrix_media_repo_container_labels_traefik_t2bot_federation_tls: "{{ matrix_media_repo_container_labels_traefik_t2bot_entrypoints != 'web' }}"
 matrix_media_repo_container_labels_traefik_t2bot_federation_tls_certResolver: default  # noqa var-naming
 
@@ -216,7 +227,7 @@ matrix_media_repo_federation_ignored_hosts: []
 # user instead. Using the same server is fine, just not the same username and database.
 matrix_media_repo_database_username: "matrix_media_repo"
 matrix_media_repo_database_password: ""
-matrix_media_repo_database_hostname: "{{ devture_postgres_identifier }}"
+matrix_media_repo_database_hostname: ""
 matrix_media_repo_database_port: 5432
 matrix_media_repo_database_name: "matrix_media_repo"
 matrix_media_repo_database_sslmode: disable
@@ -237,28 +248,8 @@ matrix_media_repo_database_max_idle_connections: 5
 # The configuration for the homeservers this media repository is known to control. Servers
 # not listed here will not be able to upload media.
 matrix_media_repo_homeservers: "{{ matrix_media_repo_homeservers_auto + matrix_media_repo_homeservers_additional }}"
-
 # Auto configured server setup by the playbook
-matrix_media_repo_homeservers_auto:
-  -  # Keep the dash from this line.
-
-    # This should match the server_name of your homeserver, and the Host header
-    # provided to the media repo.
-    name: "{{ matrix_domain }}"
-
-    # The base URL to where the homeserver can actually be reached by MMR.
-    csApi: "http://{{ matrix_nginx_proxy_proxy_matrix_client_api_addr_with_container }}"
-
-    # The number of consecutive failures in calling this homeserver before the
-    # media repository will start backing off. This defaults to 10 if not given.
-    backoffAt: 10
-
-    # The admin API interface supported by the homeserver. MMR uses a subset of the admin API
-    # during certain operations, like attempting to purge media from a room or validating server
-    # admin status. This should be set to one of "synapse", "dendrite", or "matrix". When set
-    # to "matrix", most functionality requiring the admin API will not work.
-    adminApiKind: "{{ 'synapse' if matrix_homeserver_implementation == 'synapse' else ('dendrite' if matrix_homeserver_implementation == 'dendrite' else 'matrix') }}"
-
+matrix_media_repo_homeservers_auto: []
 # Additional servers to be managed by MMR
 matrix_media_repo_homeservers_additional: []
 
@@ -820,3 +811,6 @@ matrix_media_repo_pgo_submit_url: "https://pgo-mmr.t2host.io/v1/submit"
 
 # The pgo-fleet submit key.
 matrix_media_repo_pgo_submit_key: "INSERT_VALUE_HERE"
+
+# Specifies whether the homeserver supports federation
+matrix_media_repo_homeserver_federation_enabled: true

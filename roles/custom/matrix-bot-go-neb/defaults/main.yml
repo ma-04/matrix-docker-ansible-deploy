@@ -86,7 +86,10 @@ matrix_bot_go_neb_container_labels_additional_labels: ''
 matrix_bot_go_neb_container_extra_arguments: []
 
 # List of systemd services that matrix-bot-go-neb.service depends on
-matrix_bot_go_neb_systemd_required_services_list: ['docker.service']
+matrix_bot_go_neb_systemd_required_services_list: "{{ matrix_bot_go_neb_systemd_required_services_list_default + matrix_bot_go_neb_systemd_required_services_list_auto + matrix_bot_go_neb_systemd_required_services_list_custom }}"
+matrix_bot_go_neb_systemd_required_services_list_default: ['docker.service']
+matrix_bot_go_neb_systemd_required_services_list_auto: []
+matrix_bot_go_neb_systemd_required_services_list_custom: []
 
 # List of systemd services that matrix-bot-go-neb.service wants
 matrix_bot_go_neb_systemd_wanted_services_list: []
@@ -165,7 +168,7 @@ matrix_bot_go_neb_clients: []
 #  - UserID: "@goneb:{{ matrix_domain }}"
 #    AccessToken: "MDASDASJDIASDJASDAFGFRGER"
 #    DeviceID: "DEVICE1"
-#    HomeserverURL: "{{ matrix_homeserver_container_url }}"
+#    HomeserverURL: "{{ matrix_addons_homeserver_client_api_url }}"
 #    Sync: true
 #    AutoJoinRooms: true
 #    DisplayName: "Go-NEB!"
@@ -174,7 +177,7 @@ matrix_bot_go_neb_clients: []
 #  - UserID: "@another_goneb:{{ matrix_domain }}"
 #    AccessToken: "MDASDASJDIASDJASDAFGFRGER"
 #    DeviceID: "DEVICE2"
-#    HomeserverURL: "{{ matrix_homeserver_container_url }}"
+#    HomeserverURL: "{{ matrix_addons_homeserver_client_api_url }}"
 #    Sync: false
 #    AutoJoinRooms: false
 #    DisplayName: "Go-NEB!"
@@ -287,13 +290,13 @@ matrix_bot_go_neb_services: []
 #      Rooms:
 #        "!someroom:id":
 #          Repos:
-#            "matrix-org/synapse":
+#            "element-hq/synapse":
 #              Events: ["push", "issues"]
 #            "matrix-org/dendron":
 #              Events: ["pull_request"]
 #        "!anotherroom:id":
 #          Repos:
-#            "matrix-org/synapse":
+#            "element-hq/synapse":
 #              Events: ["push", "issues"]
 #            "matrix-org/dendron":
 #              Events: ["pull_request"]

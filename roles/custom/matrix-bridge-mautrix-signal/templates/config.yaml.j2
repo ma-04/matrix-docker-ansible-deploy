@@ -58,7 +58,7 @@ appservice:
     # Appservice bot details.
     bot:
         # Username of the appservice bot.
-        username: signalbot
+        username: {{ matrix_mautrix_signal_appservice_bot_username | to_json }}
         # Display name and avatar for bot. Set to "remove" to remove display name/avatar, leave empty
         # to leave display name/avatar as-is.
         displayname: signal bridge bot
@@ -80,9 +80,13 @@ appservice:
 # Prometheus config.
 metrics:
     # Enable prometheus metrics?
-    enabled: false
+    enabled: {{ matrix_mautrix_signal_metrics_enabled | to_json }}
     # IP and port where the metrics listener should be. The path is always /metrics
-    listen: 127.0.0.1:8000
+    listen: 0.0.0.0:8000
+
+signal:
+    # Default device name that shows up in the Signal app.
+    device_name: mautrix-signal
 
 # Bridge config
 bridge:
@@ -97,7 +101,7 @@ bridge:
     # {{.UUID}} - The UUID of the Signal user.
     # {{.AboutEmoji}} - The emoji set by the user in their profile.
     # {% endraw %}
-    displayname_template: "{{ '{{.ProfileName}} (Signal)' }}"
+    displayname_template: "{{ '{{or .ProfileName .PhoneNumber "Unknown user"}} (Signal)' }}"
     # Whether to explicitly set the avatar and room name for private chat portal rooms.
     # If set to `default`, this will be enabled in encrypted rooms and disabled in unencrypted rooms.
     # If set to `always`, all DM rooms will have explicit names and avatars set.
@@ -105,6 +109,10 @@ bridge:
     private_chat_portal_meta: default
     # Should avatars from the user's contact list be used? This is not safe on multi-user instances.
     use_contact_avatars: false
+    # Should the Signal user's phone number be included in the room topic in private chat portal rooms?
+    number_in_topic: true
+    # Avatar image for the Note to Self room.
+    note_to_self_avatar: {{ matrix_mautrix_signal_bridge_note_to_self_avatar | to_json }}
 
     portal_message_buffer: 128
 
@@ -114,6 +122,8 @@ bridge:
     personal_filtering_spaces: {{ matrix_mautrix_signal_bridge_personal_filtering_spaces | to_json }}
     # Should the bridge send a read receipt from the bridge bot when a message has been sent to Signal?
     delivery_receipts: false
+    # Should Matrix m.notice-type messages be bridged?
+    bridge_notices: true
     # Whether the bridge should send the message status as a custom com.beeper.message_send_status event.
     message_status_events: false
     # Whether the bridge should send error notices via m.notice events when a message fails to bridge.

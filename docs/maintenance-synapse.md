@@ -14,13 +14,13 @@ Table of contents:
 
 ## Purging old data with the Purge History API
 
-You can use the **[Purge History API](https://github.com/matrix-org/synapse/blob/master/docs/admin_api/purge_history_api.md)** to delete old messages on a per-room basis. **This is destructive** (especially for non-federated rooms), because it means **people will no longer have access to history past a certain point**.
+You can use the **[Purge History API](https://github.com/element-hq/synapse/blob/master/docs/admin_api/purge_history_api.md)** to delete old messages on a per-room basis. **This is destructive** (especially for non-federated rooms), because it means **people will no longer have access to history past a certain point**.
 
-To make use of this API, **you'll need an admin access token** first. Refer to the documentation on [how to obtain an access token](obtaining-access-tokens.md).
+To make use of this Synapse Admin API, **you'll need an admin access token** first. Refer to the documentation on [how to obtain an access token](obtaining-access-tokens.md).
 
-Synapse's Admin API is not exposed to the internet by default. To expose it you will need to add `matrix_nginx_proxy_proxy_matrix_client_api_forwarded_location_synapse_admin_api_enabled: true` to your `vars.yml` file.
+Synapse's Admin API is not exposed to the internet by default, following [official Synapse reverse-proxying recommendations](https://github.com/element-hq/synapse/blob/master/docs/reverse_proxy.md#synapse-administration-endpoints). To expose it you will need to add `matrix_synapse_container_labels_public_client_synapse_admin_api_enabled: true` to your `vars.yml` file.
 
-Follow the [Purge History API](https://github.com/matrix-org/synapse/blob/master/docs/admin_api/purge_history_api.md) documentation page for the actual purging instructions.
+Follow the [Purge History API](https://github.com/element-hq/synapse/blob/master/docs/admin_api/purge_history_api.md) documentation page for the actual purging instructions.
 
 After deleting data, you may wish to run a [`FULL` Postgres `VACUUM`](./maintenance-postgres.md#vacuuming-postgresql).
 
@@ -47,7 +47,7 @@ After state compression, you may wish to run a [`FULL` Postgres `VACUUM`](./main
 
 ## Browse and manipulate the database
 
-When the [Synapse Admin API](https://github.com/matrix-org/synapse/tree/master/docs/admin_api) and the other tools do not provide a more convenient way, having a look at synapse's postgresql database can satisfy a lot of admins' needs.
+When the [Synapse Admin API](https://github.com/element-hq/synapse/tree/master/docs/admin_api) and the other tools do not provide a more convenient way, having a look at synapse's postgresql database can satisfy a lot of admins' needs.
 
 Editing the database manually is not recommended or supported by the Synapse developers. If you are going to do so you should [make a database backup](./maintenance-postgres.md#backing-up-postgresql).
 
@@ -74,8 +74,32 @@ Synapse's presence feature which tracks which users are online and which are off
 
 If you have enough compute resources (CPU & RAM), you can make Synapse better use of them by [enabling load-balancing with workers](configuring-playbook-synapse.md#load-balancing-with-workers).
 
-Tuning Synapse's cache factor can help reduce RAM usage. [See the upstream documentation](https://github.com/matrix-org/synapse#help-synapse-is-slow-and-eats-all-my-ram-cpu) for more information on what value to set the cache factor to. Use the variable `matrix_synapse_caches_global_factor` to set the cache factor.
-
 [Tuning your PostgreSQL database](maintenance-postgres.md#tuning-postgresql) could also improve Synapse performance. The playbook tunes the integrated Postgres database automatically, but based on your needs you may wish to adjust tuning variables manually. If you're using an [external Postgres database](configuring-playbook-external-postgres.md), you will aslo need to tune Postgres manually.
+
+### Tuning caches and cache autotuning
+
+Tuning Synapse's cache factor is useful for performance increases but also as part of controlling Synapse's memory use. Use the variable `matrix_synapse_caches_global_factor` to set the cache factor as part of this process.
+
+**The playbook defaults the global cache factor to a large value** (e.g. `10`). A smaller value (e.g. `0.5`) will decrease the amount used for caches, but will [not necessarily decrease RAM usage as a whole](https://github.com/matrix-org/synapse/issues/3939).
+
+Tuning the cache factor is useful only to a limited degree (as its crude to do in isolation) and therefore users who are tuning their cache factor should likely look into tuning autotune variables as well (see below).
+
+Cache autotuning is **enabled by default** and controlled via the following variables:
+
+- `matrix_synapse_cache_autotuning_max_cache_memory_usage` - defaults to 1/8 of total RAM with a cap of 2GB; values are specified in bytes
+- `matrix_synapse_cache_autotuning_target_cache_memory_usage` - defaults to 1/16 of total RAM with a cap of 1GB; values are specified in bytes
+- `matrix_synapse_cache_autotuning_min_cache_ttl` - defaults to `30s`
+
+You can **learn more about cache-autotuning and the global cache factor settings** in the [Synapse's documentation on caches and associated values](https://matrix-org.github.io/synapse/latest/usage/configuration/config_documentation.html#caches-and-associated-values).
+
+To **disable cache auto-tuning**, unset all values:
+
+```yml
+matrix_synapse_cache_autotuning_max_cache_memory_usage: ''
+matrix_synapse_cache_autotuning_target_cache_memory_usage: ''
+matrix_synapse_cache_autotuning_min_cache_ttl: ''
+```
+
+Users who wish to lower Synapse's RAM footprint should look into lowering the global cache factor and tweaking the autotune variables (or disabling auto-tuning). If your cache factor is too low for a given auto tune setting your caches will not reach autotune thresholds and autotune won't be able to do its job. Therefore, when auto-tuning is enabled (which it is by default), it's recommended to have your cache factor be large.
 
 See also [How do I optimize this setup for a low-power server?](faq.md#how-do-i-optimize-this-setup-for-a-low-power-server).

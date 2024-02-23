@@ -43,7 +43,7 @@ This prevents you from suffering the [Downsides of well-known-based Server Deleg
 
 To use DNS SRV record validation, you need to:
 
-- ensure that `/.well-known/matrix/server` is **not served** from the base domain, as that would interfere with DNS SRV record Server Delegation. To make the playbook **not** generate and serve the file, use the following configuration: `matrix_well_known_matrix_server_enabled: false`.
+- ensure that `/.well-known/matrix/server` is **not served** from the base domain, as that would interfere with DNS SRV record Server Delegation. To make the playbook **not** generate and serve the file, use the following configuration: `matrix_static_files_file_matrix_server_enabled: false`.
 
 - ensure that you have a `_matrix._tcp` DNS SRV record for your base domain (`<your-domain>`) with a value of `10 0 8448 matrix.<your-domain>`
 
@@ -67,52 +67,28 @@ Regardless of which method for obtaining certificates you've used, once you've m
 
 Based on your setup, you have different ways to go about it:
 
-- [Serving the Federation API with your certificates and matrix-nginx-proxy](#serving-the-federation-api-with-your-certificates-and-matrix-nginx-proxy)
+- [Server Delegation](#server-delegation)
+	- [Server Delegation via a well-known file](#server-delegation-via-a-well-known-file)
+		- [Downsides of well-known-based Server Delegation](#downsides-of-well-known-based-server-delegation)
+	- [Server Delegation via a DNS SRV record (advanced)](#server-delegation-via-a-dns-srv-record-advanced)
+		- [Obtaining certificates](#obtaining-certificates)
+		- [Serving the Federation API with your certificates](#serving-the-federation-api-with-your-certificates)
+		- [Serving the Federation API with your certificates and another webserver](#serving-the-federation-api-with-your-certificates-and-another-webserver)
+		- [Serving the Federation API with your certificates and Synapse handling Federation](#serving-the-federation-api-with-your-certificates-and-synapse-handling-federation)
 
-- [Serving the Federation API with your certificates and another webserver](#serving-the-federation-api-with-your-certificates-and-another-webserver)
 
-- [Serving the Federation API with your certificates and Synapse handling Federation](#serving-the-federation-api-with-your-certificates-and-synapse-handling-federation)
-
-
-### Serving the Federation API with your certificates and matrix-nginx-proxy
-
-**If you are using matrix-nginx-proxy**, a reverse-proxy webserver used by default in this playbook, you only need to override the certificates used for the Matrix Federation API. You can do that using:
-
-```yaml
-# Adjust paths below to point to your certificate.
-#
-# NOTE: these are in-container paths. `/matrix/ssl` on the host is mounted into the container
-# at the same path (`/matrix/ssl`) by default, so if that's the path you need, it would be seamless.
-matrix_nginx_proxy_proxy_matrix_federation_api_ssl_certificate: /matrix/ssl/config/live/<your-domain>/fullchain.pem
-matrix_nginx_proxy_proxy_matrix_federation_api_ssl_certificate_key: /matrix/ssl/config/live/<your-domain>/privkey.pem
-```
-
-If your files are not in `/matrix/ssl` but in some other location, you would need to mount them into the container:
-
-```yaml
-matrix_nginx_proxy_container_extra_arguments:
-  - "--mount type=bind,src=/some/path/on/the/host,dst=/some/path/inside/the/container,ro"
-```
-
-You then refer to them (for `matrix_nginx_proxy_proxy_matrix_federation_api_ssl_certificate` and `matrix_nginx_proxy_proxy_matrix_federation_api_ssl_certificate_key`) by using `/some/path/inside/the/container`.
-
-Make sure to reload matrix-nginx-proxy once in a while (`systemctl reload matrix-nginx-proxy`), so that newer certificates can kick in.
-Reloading doesn't cause any downtime.
 
 
 ### Serving the Federation API with your certificates and another webserver
 
-**If you are NOT using matrix-nginx-proxy**, but rather some other webserver, you can set up reverse-proxying for the `tcp/8448` port by yourself.
+**If you are using some other webserver**, you can set up reverse-proxying for the `tcp/8448` port by yourself.
 Make sure to use the proper certificates for `<your-domain>` (not for `matrix.<your-domain>`) when serving the `tcp/8448` port.
 
-Proxying needs to happen to `127.0.0.1:8048` (unencrypted Synapse federation listener).
-
-Make sure to reload/restart your webserver once in a while, so that newer certificates can kick in.
-
+As recommended in our [Fronting the integrated reverse-proxy webserver with another reverse-proxy](./configuring-playbook-own-webserver.md#fronting-the-integrated-reverse-proxy-webserver-with-another-reverse-proxy) documentation section, we recommend you to expose the Matrix Federation entrypoint from traffic at a local port (e.g. `127.0.0.1:8449`), so your reverese-proxy should send traffic there.
 
 ### Serving the Federation API with your certificates and Synapse handling Federation
 
-**Alternatively**, if you are **NOT using matrix-nginx-proxy** and **would rather not use your own webserver for Federation traffic**, you can let Synapse handle Federation by itself.
+**Alternatively**, you can let Synapse handle Federation by itself.
 
 To do that, make sure the certificate files are mounted into the Synapse container:
 

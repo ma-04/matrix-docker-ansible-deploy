@@ -5,15 +5,40 @@ AssertPathExists={{ matrix_synapse_config_dir_path }}/{{ matrix_synapse_worker_c
 After=matrix-synapse.service
 Requires=matrix-synapse.service
 
+{% set matrix_synapse_container_worker_arguments = [] %}
+
+{% if matrix_synapse_worker_type == "room_worker" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_room_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "sync_worker" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_sync_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "client_reader" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_client_reader_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "federation_reader" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_federation_reader_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "generic_worker" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_generic_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "stream_writer" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_stream_writers_container_arguments %}
+{% elif matrix_synapse_worker_type == "federation_sender" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_federation_sender_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "pusher" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_pusher_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "appservice" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_appservice_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "user_dir" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_user_dir_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "background" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_background_workers_container_arguments %}
+{% elif matrix_synapse_worker_type == "media_repository" %}
+	{% set matrix_synapse_container_worker_arguments = matrix_synapse_workers_media_repository_workers_container_arguments %}
+{% endif %}
+
 [Service]
 Type=simple
 Environment="HOME={{ devture_systemd_docker_base_systemd_unit_home_path }}"
 
 ExecStartPre=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} stop --time={{ devture_systemd_docker_base_container_stop_grace_time_seconds }} {{ matrix_synapse_worker_container_name }} 2>/dev/null || true'
 ExecStartPre=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} rm {{ matrix_synapse_worker_container_name }} 2>/dev/null || true'
-
-# Intentional delay, so that the homeserver can manage to start.
-ExecStartPre={{ matrix_host_command_sleep }} 5
 
 ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
 			--rm \
@@ -40,9 +65,13 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
 			--mount type=bind,src={{ matrix_synapse_config_dir_path }},dst=/data,ro \
 			--mount type=bind,src={{ matrix_synapse_storage_path }},dst=/matrix-media-store-parent,bind-propagation=slave \
 			{% for volume in matrix_synapse_container_additional_volumes %}
-			-v {{ volume.src }}:{{ volume.dst }}:{{ volume.options }} \
+			--mount type={{ volume.type | default('bind' if '/' in volume.src else 'volume') }},src={{ volume.src }},dst={{ volume.dst }}{{ (',' + volume.options) if volume.options else '' }} \
 			{% endfor %}
+			--label-file={{ matrix_synapse_base_path }}/{{ matrix_synapse_worker_labels_file_name }} \
 			{% for arg in matrix_synapse_container_arguments %}
+			{{ arg }} \
+			{% endfor %}
+			{% for arg in matrix_synapse_container_worker_arguments %}
 			{{ arg }} \
 			{% endfor %}
 			{{ matrix_synapse_docker_image_final }} \

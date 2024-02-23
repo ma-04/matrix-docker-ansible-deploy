@@ -22,7 +22,7 @@ matrix_appservice_irc_base_path: "{{ matrix_base_data_path }}/appservice-irc"
 matrix_appservice_irc_config_path: "{{ matrix_appservice_irc_base_path }}/config"
 matrix_appservice_irc_data_path: "{{ matrix_appservice_irc_base_path }}/data"
 
-matrix_appservice_irc_homeserver_url: "{{ matrix_homeserver_container_url }}"
+matrix_appservice_irc_homeserver_url: ""
 matrix_appservice_irc_homeserver_media_url: 'https://{{ matrix_server_fqn_matrix }}'
 matrix_appservice_irc_homeserver_domain: '{{ matrix_domain }}'
 matrix_appservice_irc_homeserver_enablePresence: true  # noqa var-naming
@@ -35,6 +35,10 @@ matrix_appservice_irc_database_hostname: ''
 matrix_appservice_irc_database_port: 5432
 matrix_appservice_irc_database_name: matrix_appservice_irc
 matrix_appservice_irc_database_sslmode: disable
+
+# The name of the container network to use when importing a NeDB database into Postgres.
+# For Postgres not working in a container, this can be left empty.
+matrix_appservice_irc_database_container_network: ''
 
 # This is just the Postgres connection string, if Postgres is used.
 # Naming clashes with `matrix_appservice_irc_database_connectionString` somewhat.
@@ -367,11 +371,20 @@ matrix_appservice_irc_ircService_servers: []  # noqa var-naming
 # Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:9999"), or empty string to not expose.
 matrix_appservice_irc_container_http_host_bind_port: ''
 
+matrix_appservice_irc_container_network: ""
+
+matrix_appservice_irc_container_additional_networks: "{{ matrix_appservice_irc_container_additional_networks_auto + matrix_appservice_irc_container_additional_networks_custom }}"
+matrix_appservice_irc_container_additional_networks_auto: []
+matrix_appservice_irc_container_additional_networks_custom: []
+
 # A list of extra arguments to pass to the container
 matrix_appservice_irc_container_extra_arguments: []
 
 # List of systemd services that matrix-appservice-irc.service depends on.
-matrix_appservice_irc_systemd_required_services_list: ['docker.service']
+matrix_appservice_irc_systemd_required_services_list: "{{ matrix_appservice_irc_systemd_required_services_list_default + matrix_appservice_irc_systemd_required_services_list_auto + matrix_appservice_irc_systemd_required_services_list_custom }}"
+matrix_appservice_irc_systemd_required_services_list_default: ['docker.service']
+matrix_appservice_irc_systemd_required_services_list_auto: []
+matrix_appservice_irc_systemd_required_services_list_custom: []
 
 # List of systemd services that matrix-appservice-irc.service wants
 matrix_appservice_irc_systemd_wanted_services_list: []

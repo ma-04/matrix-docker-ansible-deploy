@@ -9,11 +9,11 @@ matrix_mautrix_signal_container_image_self_build_repo: "https://mau.dev/mautrix/
 matrix_mautrix_signal_container_image_self_build_branch: "{{ 'main' if matrix_mautrix_signal_version == 'latest' else matrix_mautrix_signal_version }}"
 
 # renovate: datasource=docker depName=dock.mau.dev/mautrix/signal
-matrix_mautrix_signal_version: a91fc7028c54482ec6c581784d553199dfff93ff
+matrix_mautrix_signal_version: v0.5.0
 
 # See: https://mau.dev/mautrix/signal/container_registry
 matrix_mautrix_signal_docker_image: "{{ matrix_mautrix_signal_docker_image_name_prefix }}mautrix/signal:{{ matrix_mautrix_signal_docker_image_tag }}"
-matrix_mautrix_signal_docker_image_tag: "{{ 'latest' if matrix_mautrix_signal_version == 'latest' else matrix_mautrix_signal_version + '-' +  matrix_architecture }}"
+matrix_mautrix_signal_docker_image_tag: "{{ matrix_mautrix_signal_version }}"
 matrix_mautrix_signal_docker_image_name_prefix: "{{ 'localhost/' if matrix_mautrix_signal_container_image_self_build else 'dock.mau.dev/' }}"
 matrix_mautrix_signal_docker_image_force_pull: "{{ matrix_mautrix_signal_docker_image.endswith(':latest') }}"
 
@@ -22,7 +22,7 @@ matrix_mautrix_signal_config_path: "{{ matrix_mautrix_signal_base_path }}/config
 matrix_mautrix_signal_data_path: "{{ matrix_mautrix_signal_base_path }}/data"
 matrix_mautrix_signal_docker_src_files_path: "{{ matrix_mautrix_signal_base_path }}/docker-src"
 
-matrix_mautrix_signal_homeserver_address: "{{ matrix_homeserver_container_url }}"
+matrix_mautrix_signal_homeserver_address: ""
 matrix_mautrix_signal_homeserver_domain: "{{ matrix_domain }}"
 matrix_mautrix_signal_appservice_address: "http://matrix-mautrix-signal:8080"
 
@@ -40,11 +40,49 @@ matrix_mautrix_signal_bridge_relay_enabled: "{{ matrix_bridges_relay_enabled }}"
 # Only allow admins on this home server to set themselves as a relay user
 matrix_mautrix_signal_bridge_relay_admin_only: true
 
+matrix_mautrix_signal_container_network: ""
+
+matrix_mautrix_signal_container_additional_networks: "{{ matrix_mautrix_signal_container_additional_networks_auto + matrix_mautrix_signal_container_additional_networks_custom }}"
+matrix_mautrix_signal_container_additional_networks_auto: []
+matrix_mautrix_signal_container_additional_networks_custom: []
+
+# matrix_mautrix_signal_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
+# See `../templates/labels.j2` for details.
+#
+# To inject your own other container labels, see `matrix_mautrix_signal_container_labels_additional_labels`.
+matrix_mautrix_signal_container_labels_traefik_enabled: true
+matrix_mautrix_signal_container_labels_traefik_docker_network: "{{ matrix_mautrix_signal_container_network }}"
+matrix_mautrix_signal_container_labels_traefik_entrypoints: web-secure
+matrix_mautrix_signal_container_labels_traefik_tls_certResolver: default  # noqa var-naming
+
+# Controls whether labels will be added that expose mautrix-instagram's metrics
+matrix_mautrix_signal_container_labels_metrics_enabled: "{{ matrix_mautrix_signal_metrics_enabled and matrix_mautrix_signal_metrics_proxying_enabled }}"
+matrix_mautrix_signal_container_labels_metrics_traefik_rule: "Host(`{{ matrix_mautrix_signal_metrics_proxying_hostname }}`) && PathPrefix(`{{ matrix_mautrix_signal_metrics_proxying_path_prefix }}`)"
+matrix_mautrix_signal_container_labels_metrics_traefik_priority: 0
+matrix_mautrix_signal_container_labels_metrics_traefik_entrypoints: "{{ matrix_mautrix_signal_container_labels_traefik_entrypoints }}"
+matrix_mautrix_signal_container_labels_metrics_traefik_tls: "{{ matrix_mautrix_signal_container_labels_metrics_traefik_entrypoints != 'web' }}"
+matrix_mautrix_signal_container_labels_metrics_traefik_tls_certResolver: "{{ matrix_mautrix_signal_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+matrix_mautrix_signal_container_labels_metrics_middleware_basic_auth_enabled: false
+# See: https://doc.traefik.io/traefik/middlewares/http/basicauth/#users
+matrix_mautrix_signal_container_labels_metrics_middleware_basic_auth_users: ''
+
+# matrix_mautrix_signal_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
+# See `../templates/labels.j2` for details.
+#
+# Example:
+# matrix_mautrix_signal_container_labels_additional_labels: |
+#   my.label=1
+#   another.label="here"
+matrix_mautrix_signal_container_labels_additional_labels: ''
+
 # A list of extra arguments to pass to the container
 matrix_mautrix_signal_container_extra_arguments: []
 
 # List of systemd services that matrix-mautrix-signal.service depends on.
-matrix_mautrix_signal_systemd_required_services_list: ['docker.service']
+matrix_mautrix_signal_systemd_required_services_list: "{{ matrix_mautrix_signal_systemd_required_services_list_default + matrix_mautrix_signal_systemd_required_services_list_auto + matrix_mautrix_signal_systemd_required_services_list_custom }}"
+matrix_mautrix_signal_systemd_required_services_list_default: ['docker.service']
+matrix_mautrix_signal_systemd_required_services_list_auto: []
+matrix_mautrix_signal_systemd_required_services_list_custom: []
 
 # List of systemd services that matrix-mautrix-signal.service wants
 matrix_mautrix_signal_systemd_wanted_services_list: []
@@ -67,10 +105,10 @@ matrix_mautrix_signal_federate_rooms: true
 # If metrics need to be consumed by another (external) Prometheus server, consider exposing them via `matrix_mautrix_signal_metrics_proxying_enabled`.
 matrix_mautrix_signal_metrics_enabled: false
 
-# Controls whether metrics should be proxied (exposed) on `matrix.DOMAIN/metrics/mautrix-signal`.
-# This will only work take effect if `matrix_nginx_proxy_proxy_matrix_metrics_enabled: true`.
-# See the `matrix-nginx-proxy` role for details about enabling `matrix_nginx_proxy_proxy_matrix_metrics_enabled`.
+# Controls whether metrics should be exposed on a public URL.
 matrix_mautrix_signal_metrics_proxying_enabled: false
+matrix_mautrix_signal_metrics_proxying_hostname: ''
+matrix_mautrix_signal_metrics_proxying_path_prefix: ''
 
 # Database-related configuration fields.
 #
@@ -166,3 +204,5 @@ matrix_mautrix_signal_bridge_personal_filtering_spaces: true
 # On conduit versions before 0.5.0 this option prevented users from joining spaces created by the bridge.
 # Setting this to false fixed the issue.
 matrix_mautrix_signal_bridge_restricted_rooms: true
+
+matrix_mautrix_signal_bridge_note_to_self_avatar: "mxc://maunium.net/REBIVrqjZwmaWpssCZpBlmlL"

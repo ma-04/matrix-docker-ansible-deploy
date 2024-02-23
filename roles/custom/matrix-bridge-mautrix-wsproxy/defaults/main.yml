@@ -12,7 +12,7 @@ matrix_mautrix_wsproxy_docker_image_force_pull: "{{ matrix_mautrix_wsproxy_docke
 matrix_mautrix_wsproxy_base_path: "{{ matrix_base_data_path }}/wsproxy"
 matrix_mautrix_wsproxy_config_path: "{{ matrix_mautrix_wsproxy_base_path }}/config"
 
-matrix_mautrix_wsproxy_homeserver_address: "{{ matrix_homeserver_container_url }}"
+matrix_mautrix_wsproxy_homeserver_address: ""
 matrix_mautrix_wsproxy_homeserver_domain: "{{ matrix_domain }}"
 
 matrix_mautrix_wsproxy_bind_port: false
@@ -24,6 +24,10 @@ matrix_mautrix_wsproxy_hostname: ""
 
 # The base container network. It will be auto-created by this role if it doesn't exist already.
 matrix_mautrix_wsproxy_container_network: matrix-mautrix-wsproxy
+
+matrix_mautrix_wsproxy_twitter_container_additional_networks: "{{ matrix_mautrix_wsproxy_twitter_container_additional_networks_auto + matrix_mautrix_wsproxy_twitter_container_additional_networks_custom }}"
+matrix_mautrix_wsproxy_twitter_container_additional_networks_auto: []
+matrix_mautrix_wsproxy_twitter_container_additional_networks_custom: []
 
 # matrix_mautrix_wsproxy_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
 # See `../templates/labels.j2` for details.
@@ -58,7 +62,10 @@ matrix_mautrix_wsproxy_container_labels_additional_labels: ''
 matrix_mautrix_wsproxy_container_extra_arguments: []
 
 # List of systemd services that matrix-mautrix-wsproxy.service depends on.
-matrix_mautrix_wsproxy_systemd_required_services_list: ['docker.service']
+matrix_mautrix_wsproxy_systemd_required_services_list: "{{ matrix_mautrix_wsproxy_systemd_required_services_list_default + matrix_mautrix_wsproxy_systemd_required_services_list_auto + matrix_mautrix_wsproxy_systemd_required_services_list_custom }}"
+matrix_mautrix_wsproxy_systemd_required_services_list_default: ['docker.service']
+matrix_mautrix_wsproxy_systemd_required_services_list_auto: []
+matrix_mautrix_wsproxy_systemd_required_services_list_custom: []
 
 # List of systemd services that matrix-mautrix-wsproxy.service wants
 matrix_mautrix_wsproxy_systemd_wanted_services_list: []
@@ -137,6 +144,8 @@ matrix_mautrix_wsproxy_syncproxy_container_extra_arguments: []
 matrix_mautrix_wsproxy_syncproxy_systemd_required_services_list: ['docker.service', 'matrix-mautrix-wsproxy.service']
 matrix_mautrix_wsproxy_syncproxy_systemd_wanted_services_list: []
 
+matrix_mautrix_wsproxy_syncproxy_homeserver_url: ''
+
 matrix_mautrix_wsproxy_syncproxy_shared_secret: ''
 matrix_mautrix_wsproxy_syncproxy_port: 29332
 matrix_mautrix_wsproxy_syncproxy_appservice_address: "http://matrix-mautrix-wsproxy-syncproxy:{{ matrix_mautrix_wsproxy_syncproxy_port }}"
@@ -148,8 +157,8 @@ matrix_mautrix_wsproxy_syncproxy_appservice_address: "http://matrix-mautrix-wspr
 matrix_mautrix_wsproxy_syncproxy_database_engine: 'postgres'
 
 matrix_mautrix_wsproxy_syncproxy_database_username: 'matrix_mautrix_wsproxy_syncproxy'
-matrix_mautrix_wsproxy_syncproxy_database_password: 'some-password'
-matrix_mautrix_wsproxy_syncproxy_database_hostname: 'matrix-postgres'
+matrix_mautrix_wsproxy_syncproxy_database_password: ''
+matrix_mautrix_wsproxy_syncproxy_database_hostname: ''
 matrix_mautrix_wsproxy_syncproxy_database_port: 5432
 matrix_mautrix_wsproxy_syncproxy_database_name: 'matrix_mautrix_wsproxy_syncproxy'
 

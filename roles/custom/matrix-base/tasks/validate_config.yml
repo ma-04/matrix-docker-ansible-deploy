@@ -18,9 +18,9 @@
     - {'old': 'hostname_riot', 'new': 'matrix_server_fqn_element'}
     - {'old': 'matrix_server_fqn_riot', 'new': 'matrix_server_fqn_element'}
     - {'old': 'matrix_local_bin_path', 'new': '<there is no global bin path anymore - each role has its own>'}
-    - {'old': 'matrix_client_element_e2ee_default', 'new': 'matrix_well_known_matrix_client_io_element_e2ee_default'}
-    - {'old': 'matrix_client_element_e2ee_secure_backup_required', 'new': 'matrix_well_known_matrix_client_io_element_e2ee_secure_backup_required'}
-    - {'old': 'matrix_client_element_e2ee_secure_backup_setup_methods', 'new': 'matrix_well_known_matrix_client_io_element_e2ee_secure_backup_setup_methods'}
+    - {'old': 'matrix_client_element_e2ee_default', 'new': 'matrix_static_files_file_matrix_client_property_io_element_e2ee_default'}
+    - {'old': 'matrix_client_element_e2ee_secure_backup_required', 'new': 'matrix_static_files_file_matrix_client_property_io_element_e2ee_secure_backup_required'}
+    - {'old': 'matrix_client_element_e2ee_secure_backup_setup_methods', 'new': 'matrix_static_files_file_matrix_client_property_io_element_e2ee_secure_backup_setup_methods'}
 
 # We have a dedicated check for this variable, because we'd like to have a custom (friendlier) message.
 - name: Fail if matrix_homeserver_generic_secret_key is undefined
@@ -44,8 +44,8 @@
     - {'var': matrix_domain, 'value': "{{ matrix_domain | default('') }}"}
     - {'var': matrix_server_fqn_matrix, 'value': "{{ matrix_server_fqn_matrix | default('') }}"}
     - {'var': matrix_server_fqn_element, 'value': "{{ matrix_server_fqn_element | default('') }}"}
-    - {'var': matrix_homeserver_container_url, 'value': "{{ matrix_homeserver_container_url | default('') }}"}
-    - {'var': matrix_homeserver_container_federation_url, 'value': "{{ matrix_homeserver_container_federation_url | default('') }}"}
+    - {'var': matrix_homeserver_container_client_api_endpoint, 'value': "{{ matrix_homeserver_container_client_api_endpoint | default('') }}"}
+    - {'var': matrix_homeserver_container_federation_api_endpoint, 'value': "{{ matrix_homeserver_container_federation_api_endpoint | default('') }}"}
     - {'var': matrix_architecture, 'value': "{{ matrix_architecture | default('') }}"}
   when: "item.value is none or item.value == ''"
 
@@ -65,7 +65,7 @@
 - name: Fail if matrix_playbook_reverse_proxy_type is set incorrectly
   ansible.builtin.fail:
     msg: "Detected that variable matrix_playbook_reverse_proxy_type (current value: `{{ matrix_playbook_reverse_proxy_type }}`) appears to be set incorrectly. See roles/custom/matrix-base/defaults/main.yml for valid choices."
-  when: matrix_playbook_reverse_proxy_type not in ['playbook-managed-traefik', 'playbook-managed-nginx', 'other-traefik-container', 'other-nginx-non-container', 'other-on-same-host', 'other-on-another-host', 'none']
+  when: matrix_playbook_reverse_proxy_type not in ['playbook-managed-traefik', 'other-traefik-container', 'none']
 
 - name: Fail if uppercase domain used
   ansible.builtin.fail:
@@ -85,3 +85,15 @@
       To clean up your server from mx-puppet-skype's presence, see this changelog entry: https://github.com/spantaleev/matrix-docker-ansible-deploy/blob/master/CHANGELOG.md#mx-puppet-skype-removal.
       If you still need bridging to Skype, consider switching to the go-skype bridge instead. See `docs/configuring-playbook-bridge-go-skype-bridge.md`.
   when: "'matrix_mx_puppet_skype_enabled' in vars"
+
+- name: Fail if mautrix-instagram and mautrix-meta-instagram are in conflict
+  ansible.builtin.fail:
+    msg: >-
+      Your configuration enables both the old mautrix-instagram bridge and the new mautrix-meta-instagram bridge.
+      By default, both bridges are configured to use the same bridge bot username (`@{{ matrix_mautrix_meta_instagram_appservice_username }}:{{ matrix_domain }}`) which is a conflict.
+      We recommend that you disable at least one of the bridges (preferrably the old mautrix-instagram bridge), or to resolve the conflict in another way.
+      To resolve the conflict without disabling a bridge, consider adjusting one of `matrix_mautrix_instagram_appservice_bot_username` or `matrix_mautrix_meta_instagram_appservice_username` - they both have a value of {{ matrix_mautrix_meta_instagram_appservice_username }} right now.
+  when:
+    - matrix_mautrix_instagram_enabled | bool
+    - matrix_mautrix_meta_instagram_enabled | bool
+    - matrix_mautrix_instagram_appservice_bot_username == matrix_mautrix_meta_instagram_appservice_username

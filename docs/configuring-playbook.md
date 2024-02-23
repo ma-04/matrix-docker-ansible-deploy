@@ -8,7 +8,7 @@ To configure the playbook, you need to have done the following things:
 
 You can then follow these steps inside the playbook directory:
 
-1. create a directory to hold your configuration (`mkdir inventory/host_vars/matrix.<your-domain>`)
+1. create a directory to hold your configuration (`mkdir -p inventory/host_vars/matrix.<your-domain>`)
 
 1. copy the sample configuration file (`cp examples/vars.yml inventory/host_vars/matrix.<your-domain>/vars.yml`)
 
@@ -18,7 +18,9 @@ You can then follow these steps inside the playbook directory:
 
 1. edit the inventory hosts file (`inventory/hosts`) to your liking
 
-1. (optional, advanced) to run Ansible against multiple servers with different `sudo` credentials, you can copy the sample inventory hosts yaml file for each of your hosts: (`cp examples/host.yml inventory/my_host1.yml` …) and use the [`ansible-all-hosts.sh`](../inventory/scripts/ansible-all-hosts.sh) script [in the installation step](installing.md).
+2. (optional, advanced) you may wish to keep your `inventory` directory under version control with [git](https://git-scm.com/) or any other version-control system.
+
+3. (optional, advanced) to run Ansible against multiple servers with different `sudo` credentials, you can copy the sample inventory hosts yaml file for each of your hosts: (`cp examples/host.yml inventory/my_host1.yml` …) and use the [`ansible-all-hosts.sh`](../bin/ansible-all-hosts.sh) script [in the installation step](installing.md).
 
 For a basic Matrix installation, that's all you need.
 For a more custom setup, see the [Other configuration options](#other-configuration-options) below.
@@ -62,8 +64,6 @@ When you're done with all the configuration you'd like to do, continue with [Ins
 - [Serving your base domain using this playbook's nginx server](configuring-playbook-base-domain-serving.md) (optional)
 
 - [Configure the Traefik reverse-proxy](configuring-playbook-traefik.md) (optional, advanced)
-
-- (Deprecated) [Configure the Nginx reverse-proxy](configuring-playbook-nginx.md) (optional, advanced)
 
 - [Using your own webserver, instead of this playbook's default reverse-proxy](configuring-playbook-own-webserver.md) (optional, advanced)
 
@@ -120,13 +120,17 @@ When you're done with all the configuration you'd like to do, continue with [Ins
 
 - [Setting up Mautrix Whatsapp bridging](configuring-playbook-bridge-mautrix-whatsapp.md) (optional)
 
-- [Setting up Mautrix Facebook bridging](configuring-playbook-bridge-mautrix-facebook.md) (optional)
+- [Setting up Instagram bridging via Mautrix Meta](configuring-playbook-bridge-mautrix-meta-instagram.md) (optional)
+
+- [Setting up Messenger bridging via Mautrix Meta](configuring-playbook-bridge-mautrix-meta-messenger.md) (optional)
+
+- ~~[Setting up Mautrix Facebook bridging](configuring-playbook-bridge-mautrix-facebook.md)~~ - consider bridging to Facebook/Messenger using the new [mautrix-meta-messenger](./configuring-playbook-bridge-mautrix-meta-messenger.md) bridge (optional)
 
 - [Setting up Mautrix Hangouts bridging](configuring-playbook-bridge-mautrix-hangouts.md) (optional)
 
 - [Setting up Mautrix Google Chat bridging](configuring-playbook-bridge-mautrix-googlechat.md) (optional)
 
-- [Setting up Mautrix Instagram bridging](configuring-playbook-bridge-mautrix-instagram.md) (optional)
+- ~~[Setting up Mautrix Instagram bridging](configuring-playbook-bridge-mautrix-instagram.md)~~ - consider bridging to Instagram using the new [mautrix-meta-instagram](./configuring-playbook-bridge-mautrix-meta-instagram.md) bridge (optional)
 
 - [Setting up Mautrix Twitter bridging](configuring-playbook-bridge-mautrix-twitter.md) (optional)
 

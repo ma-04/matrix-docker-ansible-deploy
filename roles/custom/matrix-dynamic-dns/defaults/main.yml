@@ -18,6 +18,12 @@ matrix_dynamic_dns_docker_image_name_prefix: "{{ 'localhost/' if matrix_dynamic_
 # The image to force pull
 matrix_dynamic_dns_docker_image_force_pull: "{{ matrix_dynamic_dns_docker_image.endswith(':latest') }}"
 
+matrix_dynamic_dns_container_network: ''
+
+matrix_dynamic_dns_container_additional_networks: "{{ matrix_dynamic_dns_container_additional_networks_auto + matrix_dynamic_dns_container_additional_networks_custom }}"
+matrix_dynamic_dns_container_additional_networks_auto: []
+matrix_dynamic_dns_container_additional_networks_custom: []
+
 # List of extra arguments to pass to the ontainer mode
 matrix_dynamic_dns_container_extra_arguments: []
 

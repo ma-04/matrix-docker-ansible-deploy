@@ -1,11 +1,13 @@
 ---
 
-- name: Fail if Prometheus not enabled
+- name: (Deprecation) Catch and report renamed prometheus-nginxlog-exporter settings
   ansible.builtin.fail:
-    msg: >
-      You need to set `prometheus_enabled: true` or configure an external Prometheus database
-      as this roles requires Prometheus for data storage.
-  when: not prometheus_enabled and not matrix_prometheus_nginxlog_exporter_metrics_proxying_enabled
+    msg: >-
+      Your configuration contains a variable, which now has a different name.
+      Please change your configuration to rename the variable (`{{ item.old }}` -> `{{ item.new }}`).
+  when: "item.old in vars"
+  with_items:
+    - {'old': 'matrix_prometheus_nginxlog_exporter_container_hostname', 'new': 'matrix_prometheus_nginxlog_exporter_identifier'}
 
 - name: Fail if docker image not availble for arch
   ansible.builtin.fail:
@@ -24,9 +26,12 @@
       in vars.yml
   when: matrix_prometheus_nginxlog_exporter_docker_image_arch_check_enabled and matrix_architecture not in matrix_prometheus_nginxlog_exporter_docker_image_arch
 
-
-- name: Fail if nginx-proxy is not set to proxy metrics while prometheus-nginxlog-exporter is
+- name: Fail if required prometheus-nginxlog-exporter settings not defined
   ansible.builtin.fail:
-    msg: >
-      'matrix_prometheus_nginxlog_exporter_metrics_proxying_enabled' is set but 'matrix_nginx_proxy_proxy_matrix_metrics_enabled' is not
-  when: matrix_prometheus_nginxlog_exporter_metrics_proxying_enabled | bool and not matrix_nginx_proxy_proxy_matrix_metrics_enabled | bool
+    msg: >-
+      You need to define a required configuration setting (`{{ item.name }}`).
+  when: "item.when | bool and vars[item.name] == ''"
+  with_items:
+    - {'name': 'matrix_prometheus_nginxlog_exporter_metrics_proxying_hostname', when: "{{ matrix_prometheus_nginxlog_exporter_metrics_proxying_enabled }}"}
+    - {'name': 'matrix_prometheus_nginxlog_exporter_metrics_proxying_path_prefix', when: "{{ matrix_prometheus_nginxlog_exporter_metrics_proxying_enabled }}"}
+    - {'name': 'matrix_prometheus_nginxlog_exporter_container_network', when: true}
