@@ -48,7 +48,9 @@
     - role: galaxy/postgres
 
     - galaxy/redis
+    - galaxy/keydb
     - custom/matrix-corporal
+    - custom/matrix-appservice-draupnir-for-all
     - custom/matrix-bridge-appservice-discord
     - custom/matrix-bridge-appservice-slack
     - custom/matrix-bridge-appservice-webhooks
@@ -122,6 +124,7 @@
     - custom/matrix-static-files
     - custom/matrix-coturn
     - custom/matrix-media-repo
+    - custom/matrix-pantalaimon
 
     - role: galaxy/auxiliary
 
