@@ -9,9 +9,9 @@ This documentation page only deals with the bridge's ability to bridge to Facebo
 
 ## Migrating from the old mautrix-facebook bridge
 
-If you've been using the [mautrix-facebook](./configuring-playbook-bridge-mautrix-facebook.md) bridge, you may wish to get rid of it first.
+If you've been using the [mautrix-facebook](./configuring-playbook-bridge-mautrix-facebook.md) bridge, it's possible to migrate the database using [instructions from the bridge documentation](https://docs.mau.fi/bridges/go/meta/facebook-migration.html) (advanced).
 
-To do so, send a `clean-rooms` command to the management room with the old bridge bot (`@facebookbot:YOUR_DOMAIN`).
+Then you may wish to get rid of the Facebook bridge. To do so, send a `clean-rooms` command to the management room with the old bridge bot (`@facebookbot:YOUR_DOMAIN`).
 
 This would give you a list of portals and groups of portals you may purge. Proceed with sending commands like `clean recommended`, etc.
 
@@ -67,7 +67,7 @@ If you don't define the `matrix_admin` in your configuration (e.g. `matrix_admin
 You may redefine `matrix_mautrix_meta_messenger_bridge_permissions_default` any way you see fit, or add extra permissions using `matrix_mautrix_meta_messenger_bridge_permissions_custom` like this:
 
 ```yaml
-matrix_mautrix_meta_messenger_bridge_permissions_custom: |
+matrix_mautrix_meta_messenger_bridge_permissions_custom:
   '@YOUR_USERNAME:YOUR_DOMAIN': admin
 ```
 
@@ -77,11 +77,13 @@ You may wish to look at `roles/custom/matrix-bridge-mautrix-meta-messenger/templ
 
 If you'd like to use [Double Puppeting](https://docs.mau.fi/bridges/general/double-puppeting.html) (hint: you most likely do), you have 2 ways of going about it.
 
-### Method 1: automatically, by enabling Shared Secret Auth
+### Method 1: automatically, by enabling Appservice Double Puppet or Shared Secret Auth
 
-The bridge will automatically perform Double Puppeting if you enable [Shared Secret Auth](configuring-playbook-shared-secret-auth.md) for this playbook.
+The bridge will automatically perform Double Puppeting if you enable the [Appservice Double Puppet](configuring-playbook-appservice-double-puppet.md) service or the [Shared Secret Auth](configuring-playbook-shared-secret-auth.md) service for this playbook.
 
-This is the recommended way of setting up Double Puppeting, as it's easier to accomplish, works for all your users automatically, and has less of a chance of breaking in the future.
+Enabling [Appservice Double Puppet](configuring-playbook-appservice-double-puppet.md) is the recommended way of setting up Double Puppeting, as it's easier to accomplish, works for all your users automatically, and has less of a chance of breaking in the future.
+
+Enabling double puppeting by enabling the [Shared Secret Auth](configuring-playbook-shared-secret-auth.md) service works at the time of writing, but is deprecated and will stop working in the future.
 
 ### Method 2: manually, by asking each user to provide a working access token
 

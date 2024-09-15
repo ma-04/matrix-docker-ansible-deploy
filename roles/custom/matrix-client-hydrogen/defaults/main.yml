@@ -7,7 +7,7 @@ matrix_client_hydrogen_container_image_self_build: false
 matrix_client_hydrogen_container_image_self_build_repo: "https://github.com/element-hq/hydrogen-web.git"
 
 # renovate: datasource=docker depName=ghcr.io/element-hq/hydrogen-web
-matrix_client_hydrogen_version: v0.4.1
+matrix_client_hydrogen_version: v0.5.0
 matrix_client_hydrogen_docker_image: "{{ matrix_client_hydrogen_docker_image_name_prefix }}element-hq/hydrogen-web:{{ matrix_client_hydrogen_version }}"
 matrix_client_hydrogen_docker_image_name_prefix: "{{ 'localhost/' if matrix_client_hydrogen_container_image_self_build else 'ghcr.io/' }}"
 matrix_client_hydrogen_docker_image_force_pull: "{{ matrix_client_hydrogen_docker_image.endswith(':latest') }}"
@@ -71,7 +71,7 @@ matrix_client_hydrogen_container_labels_additional_labels: ''
 matrix_client_hydrogen_container_extra_arguments: []
 
 # List of systemd services that matrix-client-hydrogen.service depends on
-matrix_client_hydrogen_systemd_required_services_list: ['docker.service']
+matrix_client_hydrogen_systemd_required_services_list: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
 
 # Specifies the value of the `X-XSS-Protection` header
 # Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.
@@ -123,6 +123,8 @@ matrix_client_hydrogen_floc_optout_enabled: true
 # - https://hstspreload.org/#opt-in
 # See: `matrix_client_hydrogen_http_header_strict_transport_security`
 matrix_client_hydrogen_hsts_preload_enabled: false
+
+matrix_client_hydrogen_scheme: https
 
 # The hostname at which Hydrogen is served.
 matrix_client_hydrogen_hostname: "{{ matrix_server_fqn_hydrogen }}"
